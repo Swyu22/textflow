@@ -30,6 +30,7 @@ const CATEGORY_DELETE_PASSWORD = '5185';
 const SHORT_ID_LENGTH = 8;
 const NEW_CATEGORY_VALUE = '__new_category__';
 const MARKDOWN_PLUGINS = [remarkGfm, remarkBreaks];
+const PRE_PROMPT_PREVIEW_LENGTH = 10;
 
 const createEmptyHistoryMap = () => ({ deepseek: [], gemini: [], chatgpt: [] });
 const createEmptyCategoryDeleteState = () => ({
@@ -300,6 +301,11 @@ const App = () => {
   const [chatPrompt, setChatPrompt] = useState('');
   const [chatHistoryByProvider, setChatHistoryByProvider] = useState(() => createEmptyHistoryMap());
   const [providerSwitchTip, setProviderSwitchTip] = useState('');
+  const [prePromptIdInput, setPrePromptIdInput] = useState('');
+  const [prePromptReference, setPrePromptReference] = useState(null);
+  const [prePromptUsageStats, setPrePromptUsageStats] = useState({});
+  const [isPrePromptLoading, setIsPrePromptLoading] = useState(false);
+  const [uiToast, setUiToast] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [categoryDeleteState, setCategoryDeleteState] = useState(() => createEmptyCategoryDeleteState());
   const [connStatus, setConnStatus] = useState('checking');
@@ -319,11 +325,17 @@ const App = () => {
     () => chatHistoryByProvider[chatProvider] || [],
     [chatHistoryByProvider, chatProvider],
   );
+  const topPrePromptStats = useMemo(
+    () => Object.values(prePromptUsageStats || {})
+      .sort((a, b) => (b.count || 0) - (a.count || 0) || (b.lastFetchedAt || 0) - (a.lastFetchedAt || 0))
+      .slice(0, 8),
+    [prePromptUsageStats],
+  );
 
   const mockNotes = useMemo(() => [{
     id: 'DEMO0001',
     short_id: 'DEMO0001',
-    title: '欢迎使用 TextFlow',
+    title: '欢迎使用 TextFlow.文流',
     content: '### 本地离线模式\n\n后端不可用时会进入本地演示。',
     category_id: '1',
     tags: ['START'],
@@ -370,6 +382,14 @@ const App = () => {
     const timer = window.setTimeout(() => setProviderSwitchTip(''), 2400);
     return () => window.clearTimeout(timer);
   }, [providerSwitchTip]);
+
+  useEffect(() => {
+    if (!uiToast) return undefined;
+    const timer = window.setTimeout(() => {
+      setUiToast((prev) => (prev?.id === uiToast.id ? null : prev));
+    }, 2600);
+    return () => window.clearTimeout(timer);
+  }, [uiToast]);
 
   const handleCategorySelect = useCallback((categoryId) => {
     setActiveTab('notes');
@@ -609,9 +629,163 @@ const App = () => {
     }
   };
 
+  const showToast = useCallback((message, type = 'error') => {
+    const text = String(message || '').trim();
+    if (!text) return;
+    setUiToast({ id: Date.now(), type, message: text });
+  }, []);
+
+  const findNoteByExternalId = useCallback((externalId) => {
+    const target = String(externalId || '').trim().toLowerCase();
+    if (!target) return null;
+    return (notes || []).find((note) => {
+      const shortId = getNoteShortId(note).toLowerCase();
+      const fullId = String(note?.id || '').trim().toLowerCase();
+      return shortId === target || fullId === target;
+    }) || null;
+  }, [notes]);
+
+  const applyPrePromptReference = useCallback((reference) => {
+    if (!reference?.id || !reference?.content) return;
+    const normalizedId = toShortId(reference.id) || String(reference.id || '').trim().toUpperCase();
+    if (!normalizedId) return;
+    const sourceTitle = String(reference.title || `ID ${normalizedId}`).trim() || `ID ${normalizedId}`;
+    const titlePreview = sourceTitle.length > PRE_PROMPT_PREVIEW_LENGTH
+      ? `${sourceTitle.slice(0, PRE_PROMPT_PREVIEW_LENGTH)}...`
+      : sourceTitle;
+
+    setPrePromptIdInput(normalizedId);
+    setPrePromptReference({
+      id: normalizedId,
+      title: sourceTitle,
+      titlePreview,
+      content: String(reference.content || ''),
+    });
+  }, []);
+
+  const recordPrePromptUsage = useCallback((reference) => {
+    if (!reference?.id || !reference?.content) return;
+    const normalizedId = toShortId(reference.id) || String(reference.id || '').trim().toUpperCase();
+    const content = String(reference.content || '').trim();
+    if (!normalizedId || !content) return;
+
+    const sourceTitle = String(reference.title || `ID ${normalizedId}`).trim() || `ID ${normalizedId}`;
+    const titlePreview = sourceTitle.length > PRE_PROMPT_PREVIEW_LENGTH
+      ? `${sourceTitle.slice(0, PRE_PROMPT_PREVIEW_LENGTH)}...`
+      : sourceTitle;
+    const now = Date.now();
+
+    setPrePromptUsageStats((prev) => {
+      const current = prev?.[normalizedId];
+      return {
+        ...(prev || {}),
+        [normalizedId]: {
+          id: normalizedId,
+          title: sourceTitle,
+          titlePreview,
+          content,
+          count: (current?.count || 0) + 1,
+          lastFetchedAt: now,
+        },
+      };
+    });
+  }, []);
+
+  const clearPrePromptReference = () => {
+    setPrePromptReference(null);
+    setPrePromptIdInput('');
+  };
+
+  const handleFetchPrePrompt = async () => {
+    const externalId = String(prePromptIdInput || '').trim();
+    if (!externalId || isPrePromptLoading) return;
+
+    setIsPrePromptLoading(true);
+    try {
+      let title = '';
+      let content = '';
+
+      const inMemoryNote = findNoteByExternalId(externalId);
+      if (inMemoryNote) {
+        title = String(inMemoryNote?.title || '').trim();
+        content = String(inMemoryNote?.content || '').trim();
+      } else if (connStatus === 'offline') {
+        showToast('未找到对应文案，请检查ID');
+        return;
+      } else {
+        const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(externalId)}`);
+        const responseContentType = response.headers.get('content-type') || '';
+        const isJsonResponse = responseContentType.includes('application/json');
+        const payload = isJsonResponse ? await response.json().catch(() => null) : null;
+        const plainText = isJsonResponse ? '' : await response.text().catch(() => '');
+        const responseError = extractErrorMessage(payload) || plainText;
+
+        if (response.status === 404 || /invalid input syntax for type uuid/i.test(responseError)) {
+          showToast('未找到对应文案，请检查ID');
+          return;
+        }
+
+        if (response.status === 409) {
+          showToast(responseError || '短ID不唯一，请使用完整ID查询。');
+          return;
+        }
+
+        if (!response.ok) throw new Error(responseError || `HTTP ${response.status}`);
+
+        if (isJsonResponse) {
+          if (payload?.ok === false) {
+            const errorMessage = extractErrorMessage(payload);
+            if (/不存在|not found/i.test(errorMessage)) {
+              showToast('未找到对应文案，请检查ID');
+              return;
+            }
+            throw new Error(errorMessage || '获取前置信息失败');
+          }
+          title = String(payload?.data?.title || '').trim();
+          content = String(payload?.data?.text ?? payload?.data?.content ?? '').trim();
+        } else {
+          content = String(plainText || '').trim();
+        }
+      }
+
+      if (!content) {
+        showToast('该ID对应的文案内容为空');
+        return;
+      }
+
+      if (!title) {
+        const fallbackNote = findNoteByExternalId(externalId);
+        title = String(fallbackNote?.title || '').trim();
+      }
+
+      const normalizedId = toShortId(externalId) || externalId.toUpperCase();
+      const sourceTitle = title || `ID ${normalizedId}`;
+      const titlePreview = sourceTitle.length > PRE_PROMPT_PREVIEW_LENGTH
+        ? `${sourceTitle.slice(0, PRE_PROMPT_PREVIEW_LENGTH)}...`
+        : sourceTitle;
+      const resolvedReference = {
+        id: normalizedId,
+        title: sourceTitle,
+        titlePreview,
+        content,
+      };
+
+      applyPrePromptReference(resolvedReference);
+      recordPrePromptUsage(resolvedReference);
+    } catch {
+      showToast('获取前置信息失败');
+    } finally {
+      setIsPrePromptLoading(false);
+    }
+  };
+
   const onChat = async () => {
     const prompt = chatPrompt.trim();
     if (!prompt || isStreaming) return;
+
+    const finalPrompt = prePromptReference?.content
+      ? `${prePromptReference.content}\n\n${prompt}`
+      : prompt;
 
     const providerAtSend = chatProvider;
     const historyForProvider = chatHistoryByProvider[providerAtSend] || [];
@@ -632,7 +806,7 @@ const App = () => {
 
     try {
       await sendMessage({
-        prompt,
+        prompt: finalPrompt,
         provider: providerAtSend,
         contextMessages,
         onChunk: (chunk) => {
@@ -694,11 +868,23 @@ const App = () => {
         </div>
       )}
 
+      {uiToast && (
+        <div className={`fixed right-4 top-16 z-[1201] max-w-xs sm:max-w-sm rounded-xl border px-4 py-3 shadow-xl backdrop-blur ${uiToast.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+          <div className="flex items-start gap-2">
+            {uiToast.type === 'success' ? <Check size={16} className="mt-0.5 shrink-0" /> : <AlertCircle size={16} className="mt-0.5 shrink-0" />}
+            <p className="text-xs font-semibold leading-5 flex-1">{uiToast.message}</p>
+            <button type="button" onClick={() => setUiToast(null)} className="p-0.5 opacity-70 hover:opacity-100">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <aside className="tf-sidebar w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-10">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200"><span className="text-white font-bold text-xl">T</span></div>
-            <h1 className="text-2xl font-black tracking-tighter">TextFlow</h1>
+            <h1 className="text-2xl font-black tracking-tighter leading-none">TextFlow.文流</h1>
           </div>
           <nav className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
             <button onClick={() => handleCategorySelect(null)} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${!activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid size={18} /> 全部内容</button>
@@ -726,15 +912,15 @@ const App = () => {
             })}
           </nav>
         </div>
-        <div className="mt-auto p-6 border-t border-slate-50 text-slate-300 text-[10px] font-bold flex items-center gap-2"><Settings size={12} /> V1.0.8 STABLE</div>
+        <div className="mt-auto px-6 pt-6 pb-3 text-slate-300 text-[10px] font-bold flex items-center justify-center gap-2 text-center"><Settings size={12} /> V1.0.8 STABLE</div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] pb-14 sm:pb-16">
         <header className="bg-white px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 shrink-0 z-10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex items-end gap-1 overflow-x-auto no-scrollbar">
-              <button onClick={() => setActiveTab('notes')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'notes' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>笔记流</button>
-              <button onClick={() => setActiveTab('chat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>AI 助手</button>
+              <button onClick={() => setActiveTab('notes')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'notes' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>文字流</button>
+              <button onClick={() => setActiveTab('chat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>AI文字助手</button>
             </div>
             <div className="w-full sm:w-auto sm:ml-auto pb-3 sm:pb-4 flex items-center gap-2 sm:gap-4">
               <div className="relative flex-1 sm:flex-none">
@@ -843,9 +1029,9 @@ const App = () => {
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col bg-white">
+            <div className="h-full flex flex-col bg-[#F8FAFC]">
               <div className="px-4 sm:px-8 py-4 sm:py-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center"><MessageSquare size={20} /></div><h2 className="font-black text-lg">AI助手</h2></div>
+                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center"><MessageSquare size={20} /></div><h2 className="font-black text-lg">AI文字助手</h2></div>
                 <div className="flex p-1 bg-slate-100 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
                   {CHAT_PROVIDERS.map((provider) => (
                     <button key={provider} onClick={() => handleProviderChange(provider)} className={`px-3 sm:px-4 py-2 rounded-lg text-[10px] font-black whitespace-nowrap flex-none ${chatProvider === provider ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}>{CHAT_PROVIDER_LABEL[provider]}</button>
@@ -859,11 +1045,32 @@ const App = () => {
                 </div>
               )}
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12 bg-slate-50/30" ref={chatScrollRef}>
-                <div className="max-w-3xl w-full mx-auto space-y-6">
+              {topPrePromptStats.length > 0 && (
+                <div className="px-4 sm:px-8 pb-2">
+                  <div className="max-w-[72rem] w-full mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <span className="px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white border-slate-200 text-slate-500 whitespace-nowrap shrink-0">高频调取</span>
+                    {topPrePromptStats.map((item) => (
+                      <button
+                        key={`prefetch-${item.id}`}
+                        type="button"
+                        onClick={() => applyPrePromptReference(item)}
+                        className="inline-flex items-center px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white border-slate-200 text-slate-600 hover:border-slate-300 whitespace-nowrap shrink-0"
+                        title={`${item.id} · ${item.title}`}
+                      >
+                        <span className="font-mono">{item.id}</span>
+                        <span className="mx-1 text-slate-300">|</span>
+                        <span className="max-w-[8.5rem] truncate">{item.titlePreview}</span>
+                        <span className="ml-2 inline-flex min-w-[1.25rem] justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">{item.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className={`flex-1 p-4 sm:p-8 lg:p-12 bg-[#F8FAFC] ${currentChatHistory.length === 0 && !chatError ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={chatScrollRef}>
+                <div className={`max-w-[72rem] w-full mx-auto ${currentChatHistory.length === 0 && !chatError ? 'h-full flex flex-col' : 'space-y-6'}`}>
                   {chatError && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-bold flex items-center gap-2"><AlertCircle size={16} /> {chatError}</div>}
                   {currentChatHistory.length === 0 ? (
-                    <div className="h-64 flex flex-col items-center justify-center text-slate-200 opacity-40"><MessageSquare size={64} /><p className="font-black mt-4 uppercase tracking-widest text-xs">开始连续对话（刷新后清空）</p></div>
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400"><MessageSquare size={64} /><p className="font-black mt-4 uppercase tracking-widest text-xs text-slate-500">开始连续对话（刷新后清空）</p></div>
                   ) : (
                     <div className="space-y-4">
                       {currentChatHistory.map((item) => {
@@ -888,8 +1095,48 @@ const App = () => {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-8 pb-20 sm:pb-24 bg-white">
-                <div className="max-w-3xl w-full mx-auto relative group">
+              <div className="p-4 sm:p-8 pb-20 sm:pb-24 bg-[#F8FAFC]">
+                <div className="max-w-[72rem] w-full mx-auto mb-4 sm:mb-5">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <input
+                        type="text"
+                        className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium outline-none focus:border-blue-300"
+                        placeholder="前置提示词 ID（输入短ID或完整ID）"
+                        value={prePromptIdInput}
+                        onChange={(e) => setPrePromptIdInput(e.target.value)}
+                        disabled={isPrePromptLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleFetchPrePrompt}
+                        disabled={isPrePromptLoading || !prePromptIdInput.trim()}
+                        className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isPrePromptLoading ? '拉取中...' : '确定'}
+                      </button>
+                    </div>
+
+                    {prePromptReference && (
+                      <div className="mt-3 rounded-xl border border-blue-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex items-center gap-2 text-xs font-semibold text-blue-700">
+                          <Check size={14} className="shrink-0" />
+                          <span className="truncate">引用内容：{prePromptReference.titlePreview}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearPrePromptReference}
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                          title="清除引用"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="max-w-[72rem] w-full mx-auto relative group">
                   <textarea rows="4" className="w-full min-h-[10rem] sm:min-h-[11rem] p-4 sm:p-6 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
                   <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
                 </div>
@@ -1075,11 +1322,6 @@ const App = () => {
 };
 
 export default App;
-
-
-
-
-
 
 
 
