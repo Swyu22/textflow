@@ -1,11 +1,11 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
 import {
   AlertCircle,
   Check,
-  ChevronRight,
   Copy,
-  ExternalLink,
   LayoutGrid,
   MessageSquare,
   Plus,
@@ -29,8 +29,7 @@ const MAX_CONTEXT_MESSAGES = 12;
 const CATEGORY_DELETE_PASSWORD = '5185';
 const SHORT_ID_LENGTH = 8;
 const NEW_CATEGORY_VALUE = '__new_category__';
-const URL_REGEX = /https?:\/\/[^\s)]+/i;
-const MD_LINK_REGEX = /\[[^\]]+\]\((https?:\/\/[^\s)]+)\)/i;
+const MARKDOWN_PLUGINS = [remarkGfm, remarkBreaks];
 
 const createEmptyHistoryMap = () => ({ deepseek: [], gemini: [], chatgpt: [] });
 const createEmptyCategoryDeleteState = () => ({
@@ -50,16 +49,22 @@ const createLocalShortId = () => {
   while (candidate.length < SHORT_ID_LENGTH) candidate += Math.random().toString(36).slice(2).toUpperCase();
   return candidate.slice(0, SHORT_ID_LENGTH);
 };
+const normalizeCategoryId = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+};
 const withShortId = (note) => {
   if (!note || typeof note !== 'object') return note;
   const shortId = toShortId(note.short_id || note.id);
-  return shortId ? { ...note, short_id: shortId } : { ...note };
+  const categoryId = normalizeCategoryId(note.category_id);
+  if (shortId) return { ...note, short_id: shortId, category_id: categoryId || null };
+  return { ...note, category_id: categoryId || null };
 };
 const normalizeNotes = (items) => (Array.isArray(items) ? items.map((item) => withShortId(item)) : []);
 const getNoteShortId = (note) => toShortId(note?.short_id || note?.id);
 const getNoteExternalFetchUrl = (note) => {
   const shortId = getNoteShortId(note);
-  return shortId ? `${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(shortId)}` : '';
+  return shortId ? `${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(shortId)}/text` : '';
 };
 const normalizeHttpUrl = (value) => {
   const link = String(value || '').trim();
@@ -72,14 +77,21 @@ const normalizeHttpUrl = (value) => {
     return '';
   }
 };
-const getNoteJumpUrl = (note) => {
-  const direct = normalizeHttpUrl(note?.link_url);
-  if (direct) return direct;
-  const content = String(note?.content || '');
-  const markdownLink = content.match(MD_LINK_REGEX)?.[1];
-  if (markdownLink) return normalizeHttpUrl(markdownLink);
-  const plainLink = content.match(URL_REGEX)?.[0];
-  return normalizeHttpUrl(plainLink);
+const MarkdownLink = ({ href, ...props }) => {
+  const safeHref = normalizeHttpUrl(href);
+  return (
+    <a
+      {...props}
+      href={safeHref || '#'}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!safeHref) e.preventDefault();
+      }}
+      className="text-blue-600 underline underline-offset-2 break-all hover:text-blue-700"
+    />
+  );
 };
 
 const toContextMessages = (history) =>
@@ -353,6 +365,12 @@ const App = () => {
     return () => window.clearTimeout(timer);
   }, [providerSwitchTip]);
 
+  const handleCategorySelect = useCallback((categoryId) => {
+    setActiveTab('notes');
+    setActiveTag(null);
+    setActiveCategory(categoryId ? normalizeCategoryId(categoryId) : null);
+  }, []);
+
   const copyText = async (text, token) => {
     const content = String(text || '');
     if (!content) return;
@@ -383,6 +401,7 @@ const App = () => {
   const handleCategoryDelete = async () => {
     const target = categoryDeleteState.category;
     if (!target?.id || categoryDeleteState.isSubmitting) return;
+    const targetCategoryId = normalizeCategoryId(target.id);
 
     if (categoryDeleteState.password !== CATEGORY_DELETE_PASSWORD) {
       setCategoryDeleteState((prev) => ({ ...prev, error: '删除密码错误，请重新输入。' }));
@@ -393,8 +412,8 @@ const App = () => {
     try {
       if (connStatus === 'offline') {
         setCategories((prev) => prev.filter((item) => item.id !== target.id));
-        setNotes((prev) => prev.map((note) => (note.category_id === target.id ? { ...note, category_id: null } : note)));
-        if (activeCategory === target.id) setActiveCategory(null);
+        setNotes((prev) => prev.map((note) => (normalizeCategoryId(note.category_id) === targetCategoryId ? { ...note, category_id: null } : note)));
+        if (normalizeCategoryId(activeCategory) === targetCategoryId) setActiveCategory(null);
         closeCategoryDeleteDialog();
         return;
       }
@@ -410,8 +429,8 @@ const App = () => {
       }
 
       setCategories((prev) => prev.filter((item) => item.id !== target.id));
-      setNotes((prev) => prev.map((note) => (note.category_id === target.id ? { ...note, category_id: null } : note)));
-      if (activeCategory === target.id) setActiveCategory(null);
+      setNotes((prev) => prev.map((note) => (normalizeCategoryId(note.category_id) === targetCategoryId ? { ...note, category_id: null } : note)));
+      if (normalizeCategoryId(activeCategory) === targetCategoryId) setActiveCategory(null);
       closeCategoryDeleteDialog();
     } catch (err) {
       setCategoryDeleteState((prev) => ({ ...prev, isSubmitting: false, error: String(err.message || err) }));
@@ -437,7 +456,7 @@ const App = () => {
       if (connStatus === 'offline') {
         const localCategory = { id: `local-cat-${Date.now()}`, name };
         setCategories((prev) => [...prev, localCategory]);
-        setCurrentNote((prev) => ({ ...prev, category_id: localCategory.id }));
+        setCurrentNote((prev) => ({ ...prev, category_id: normalizeCategoryId(localCategory.id) }));
         setIsAddingCategory(false);
         setNewCategoryName('');
         return;
@@ -456,7 +475,7 @@ const App = () => {
       const created = result?.data;
       if (!created?.id) throw new Error('新增分类失败：未返回分类ID。');
       setCategories((prev) => [...prev, created]);
-      setCurrentNote((prev) => ({ ...prev, category_id: created.id }));
+      setCurrentNote((prev) => ({ ...prev, category_id: normalizeCategoryId(created.id) }));
       setIsAddingCategory(false);
       setNewCategoryName('');
     } catch (err) {
@@ -488,7 +507,7 @@ const App = () => {
     setCategoryCreateError('');
     setNewCategoryName('');
     setIsAddingCategory(false);
-    setCurrentNote({ ...EMPTY_NOTE, category_id: activeCategory || '', tags: activeTag ? [activeTag] : [] });
+    setCurrentNote({ ...EMPTY_NOTE, category_id: normalizeCategoryId(activeCategory) || '', tags: activeTag ? [activeTag] : [] });
     setIsModalOpen(true);
   };
 
@@ -501,7 +520,7 @@ const App = () => {
       id: note?.id || null,
       title: note?.title || '',
       content: note?.content || '',
-      category_id: note?.category_id || '',
+      category_id: normalizeCategoryId(note?.category_id) || '',
       tags: Array.isArray(note?.tags) ? note.tags : [],
     });
     setIsModalOpen(true);
@@ -632,10 +651,26 @@ const App = () => {
   };
 
   const allTags = useMemo(() => Array.from(new Set((notes || []).flatMap((n) => (Array.isArray(n?.tags) ? n.tags : [])))), [notes]);
+  const noteCountByCategory = useMemo(() => {
+    const counter = new Map();
+    (notes || []).forEach((note) => {
+      const key = normalizeCategoryId(note?.category_id);
+      if (!key) return;
+      counter.set(key, (counter.get(key) || 0) + 1);
+    });
+    return counter;
+  }, [notes]);
+  const activeCategoryName = useMemo(() => {
+    const key = normalizeCategoryId(activeCategory);
+    if (!key) return '';
+    const matched = (categories || []).find((category) => normalizeCategoryId(category?.id) === key);
+    return matched?.name || '';
+  }, [categories, activeCategory]);
   const filteredNotes = useMemo(() => {
     const keyword = searchId.trim().toLowerCase();
+    const currentCategory = normalizeCategoryId(activeCategory);
     return (notes || []).filter((n) => {
-      const mCat = activeCategory ? n.category_id === activeCategory : true;
+      const mCat = currentCategory ? normalizeCategoryId(n.category_id) === currentCategory : true;
       const mTag = activeTag ? n.tags?.includes(activeTag) : true;
       const shortId = getNoteShortId(n).toLowerCase();
       const fullId = String(n.id || '').toLowerCase();
@@ -660,31 +695,36 @@ const App = () => {
             <h1 className="text-2xl font-black tracking-tighter">TextFlow</h1>
           </div>
           <nav className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
-            <button onClick={() => setActiveCategory(null)} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${!activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid size={18} /> 全部内容</button>
+            <button onClick={() => handleCategorySelect(null)} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${!activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid size={18} /> 全部内容</button>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-10 mb-4 ml-4">分类空间</p>
-            {Array.isArray(categories) && categories.map((cat) => (
-              <div key={cat.id} className={`group flex items-center justify-between px-4 py-2.5 rounded-xl ${activeCategory === cat.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
-                <button type="button" onClick={() => setActiveCategory(cat.id)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                  <ChevronRight size={16} />
-                  <span className="truncate">{cat.name}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openCategoryDeleteDialog(cat)}
-                  className="ml-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="删除分类"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+            {Array.isArray(categories) && categories.map((cat) => {
+              const categoryKey = normalizeCategoryId(cat?.id);
+              const isActive = normalizeCategoryId(activeCategory) === categoryKey;
+              const count = noteCountByCategory.get(categoryKey) || 0;
+              return (
+                <div key={cat.id} className={`group flex items-center justify-between px-4 py-2.5 rounded-xl ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
+                  <button type="button" onClick={() => handleCategorySelect(categoryKey)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                    <span className="truncate">{cat.name}</span>
+                    <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openCategoryDeleteDialog(cat)}
+                    className="ml-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="删除分类"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
           </nav>
         </div>
         <div className="mt-auto p-6 border-t border-slate-50 text-slate-300 text-[10px] font-bold flex items-center gap-2"><Settings size={12} /> V1.0.8 STABLE</div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
-        <header className="bg-white border-b border-slate-200 px-8 pt-5 flex items-end gap-1 shrink-0 z-10">
+        <header className="bg-white px-8 pt-5 flex items-end gap-1 shrink-0 z-10">
           <button onClick={() => setActiveTab('notes')} className={`px-8 py-4 rounded-t-2xl text-sm font-black ${activeTab === 'notes' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>笔记流</button>
           <button onClick={() => setActiveTab('chat')} className={`px-8 py-4 rounded-t-2xl text-sm font-black ${activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>AI 助手</button>
           <div className="ml-auto mb-4 flex items-center gap-4">
@@ -699,13 +739,19 @@ const App = () => {
         <div className="flex-1 overflow-hidden relative">
           {activeTab === 'notes' ? (
             <div className="h-full flex flex-col">
-              <div className="px-8 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar border-b bg-white/50">
+              <div className="px-8 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar bg-white/50">
                 <Tag size={14} className="text-slate-400 shrink-0" />
                 <button onClick={() => setActiveTag(null)} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border ${!activeTag ? 'bg-slate-900 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500'}`}>全部标签</button>
                 {allTags.map((tag) => (
                   <button key={tag} onClick={() => setActiveTag(tag)} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border ${activeTag === tag ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>#{tag}</button>
                 ))}
               </div>
+
+              {activeCategoryName && (
+                <div className="px-8 py-3 bg-blue-50/60 text-xs font-semibold text-blue-700">
+                  当前分类: {activeCategoryName} ({filteredNotes.length} 条)
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                 {filteredNotes.length === 0 ? (
@@ -718,7 +764,6 @@ const App = () => {
                       const noteIdToken = `note-id-${note.id}`;
                       const isTextCopied = copiedToken === noteTextToken;
                       const isIdCopied = copiedToken === noteIdToken;
-                      const noteJumpUrl = getNoteJumpUrl(note);
                       return (
                         <div key={note.id} onClick={() => setViewingNote(note)} className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[300px]">
                           <div className="flex items-start justify-between gap-3 mb-4">
@@ -742,37 +787,14 @@ const App = () => {
                           </div>
 
                           <h3 className="text-xl font-black text-slate-800 mb-3 truncate">{String(note.title || '无标题')}</h3>
-                          <div className="prose prose-sm prose-slate text-slate-600 line-clamp-6 mb-4 font-medium">
+                          <div className="tf-markdown prose prose-sm prose-slate prose-a:text-blue-600 prose-a:underline prose-a:underline-offset-2 text-slate-600 line-clamp-6 mb-4 font-medium">
                             <ReactMarkdown
-                              components={{
-                                a: ({ href, ...props }) => (
-                                  <a
-                                    {...props}
-                                    href={normalizeHttpUrl(href) || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (!normalizeHttpUrl(href)) e.preventDefault();
-                                    }}
-                                    className="text-blue-600 underline break-all"
-                                  />
-                                ),
-                              }}
+                              remarkPlugins={MARKDOWN_PLUGINS}
+                              components={{ a: MarkdownLink }}
                             >
                               {String(note.content || '')}
                             </ReactMarkdown>
                           </div>
-
-                          {noteJumpUrl && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); window.open(noteJumpUrl, '_blank', 'noopener,noreferrer'); }}
-                              className="inline-flex items-center gap-1 w-fit mb-4 px-2 py-1 rounded-lg text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100"
-                            >
-                              <ExternalLink size={12} />
-                              跳转链接
-                            </button>
-                          )}
 
                           <div className="mt-auto pt-5 border-t border-slate-50 flex items-center justify-between">
                             <button
@@ -792,8 +814,8 @@ const App = () => {
             </div>
           ) : (
             <div className="h-full flex flex-col bg-white">
-              <div className="px-8 py-6 border-b flex items-center justify-between">
-                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center"><MessageSquare size={20} /></div><h2 className="font-black text-lg">AI 智能分析</h2></div>
+              <div className="px-8 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center"><MessageSquare size={20} /></div><h2 className="font-black text-lg">Ai文字助手</h2></div>
                 <div className="flex p-1 bg-slate-100 rounded-xl">
                   {CHAT_PROVIDERS.map((provider) => (
                     <button key={provider} onClick={() => handleProviderChange(provider)} className={`px-4 py-2 rounded-lg text-[10px] font-black ${chatProvider === provider ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}>{CHAT_PROVIDER_LABEL[provider]}</button>
@@ -802,7 +824,7 @@ const App = () => {
               </div>
 
               {providerSwitchTip && (
-                <div className="px-8 py-2 border-b border-amber-100 bg-amber-50 text-amber-700 text-xs font-bold">
+                <div className="px-8 py-2 bg-amber-50 text-amber-700 text-xs font-bold">
                   {providerSwitchTip}
                 </div>
               )}
@@ -823,7 +845,11 @@ const App = () => {
                               <span className={`text-xs font-black tracking-wide ${isUser ? 'text-blue-700' : 'text-slate-500'}`}>{isUser ? '你' : `AI · ${CHAT_PROVIDER_LABEL[item.provider] || item.provider}`}</span>
                               <button onClick={() => copyText(item.content, item.id)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-700">{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? '已复制' : '复制'}</button>
                             </div>
-                            <div className="prose prose-slate max-w-none text-sm"><ReactMarkdown>{item.content || (isStreaming && !isUser ? '...' : '')}</ReactMarkdown></div>
+                            <div className="tf-markdown prose prose-slate prose-a:text-blue-600 prose-a:underline prose-a:underline-offset-2 max-w-none text-sm leading-7">
+                              <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={{ a: MarkdownLink }}>
+                                {item.content || (isStreaming && !isUser ? '...' : '')}
+                              </ReactMarkdown>
+                            </div>
                           </div>
                         );
                       })}
@@ -832,7 +858,7 @@ const App = () => {
                 </div>
               </div>
 
-              <div className="p-8 border-t bg-white">
+              <div className="p-8 bg-white">
                 <div className="max-w-4xl mx-auto relative group">
                   <textarea rows="2" className="w-full p-6 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
                   <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
@@ -845,40 +871,28 @@ const App = () => {
 
       {viewingNote && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
-            <div className="px-10 py-8 border-b flex justify-between items-center">
-              <h3 className="text-2xl font-black">{String(viewingNote.title || '正文')}</h3>
-              <button onClick={() => setViewingNote(null)} className="p-2 border rounded-full hover:bg-slate-50"><X size={24} /></button>
+          <div className="bg-white w-full max-w-5xl max-h-[92vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
+            <div className="px-8 md:px-10 py-6 md:py-8 bg-white flex justify-between items-center gap-4">
+              <div className="min-w-0">
+                <h3 className="text-xl md:text-2xl font-black truncate">{String(viewingNote.title || '正文')}</h3>
+                <p className="text-xs font-semibold text-slate-400 mt-2 font-mono">短ID: {getNoteShortId(viewingNote) || '-'}</p>
+              </div>
+              <button onClick={() => setViewingNote(null)} className="p-2 border rounded-full hover:bg-slate-50 shrink-0"><X size={24} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-12 prose prose-lg max-w-none">
-              <ReactMarkdown
-                components={{
-                  a: ({ href, ...props }) => (
-                    <a
-                      {...props}
-                      href={normalizeHttpUrl(href) || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => { if (!normalizeHttpUrl(href)) e.preventDefault(); }}
-                      className="text-blue-600 underline break-all"
-                    />
-                  ),
-                }}
-              >
-                {String(viewingNote.content || '')}
-              </ReactMarkdown>
+            <div className="flex-1 overflow-y-auto bg-slate-50/70">
+              <article className="max-w-3xl mx-auto px-6 md:px-10 py-8 md:py-10">
+                <div className="bg-white border border-slate-200 rounded-3xl shadow-sm px-6 md:px-8 py-6 md:py-8">
+                  <div className="tf-markdown prose prose-slate prose-lg prose-a:text-blue-600 prose-a:underline prose-a:underline-offset-2 max-w-none leading-8">
+                    <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={{ a: MarkdownLink }}>
+                      {String(viewingNote.content || '')}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </article>
             </div>
-            <div className="p-8 border-t flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+            <div className="p-8 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
               <span className="text-xs font-bold text-slate-400 font-mono">短ID: {getNoteShortId(viewingNote) || '-'}</span>
               <div className="flex items-center gap-3">
-                {getNoteJumpUrl(viewingNote) && (
-                  <button
-                    onClick={() => window.open(getNoteJumpUrl(viewingNote), '_blank', 'noopener,noreferrer')}
-                    className="px-4 py-2 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100"
-                  >
-                    跳转链接
-                  </button>
-                )}
                 <button
                   onClick={() => copyText(viewingNote.content, `view-note-text-${viewingNote.id}`)}
                   className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-slate-300"
@@ -928,11 +942,11 @@ const App = () => {
                     }
                     setIsAddingCategory(false);
                     setCategoryCreateError('');
-                    setCurrentNote({ ...currentNote, category_id: nextValue });
+                    setCurrentNote({ ...currentNote, category_id: normalizeCategoryId(nextValue) });
                   }}
                 >
                   <option value="">未分类</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {categories.map((c) => <option key={c.id} value={normalizeCategoryId(c.id)}>{c.name}</option>)}
                   <option value={NEW_CATEGORY_VALUE}>+ 新增分类...</option>
                 </select>
                 <input type="text" className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100" placeholder="标签 (逗号分隔)..." value={currentNote.tags?.join(', ')} onChange={(e) => setCurrentNote({ ...currentNote, tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })} />
@@ -1017,6 +1031,8 @@ const App = () => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .prose pre { background: #f1f5f9; padding: 1.25rem; border-radius: 1rem; overflow-x: auto; margin: 1rem 0; border: 1px solid #e2e8f0; }
         .prose code { color: #2563eb; font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.875em; }
+        .tf-markdown p, .tf-markdown li, .tf-markdown blockquote { white-space: pre-wrap; }
+        .tf-markdown { word-break: break-word; }
         .line-clamp-6 { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
         .animate-in { animation: tf-fade-in 0.4s ease-out; }
         @keyframes tf-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
