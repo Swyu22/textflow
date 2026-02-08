@@ -4,6 +4,7 @@ import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import {
   AlertCircle,
+  BookOpen,
   Check,
   Copy,
   LayoutGrid,
@@ -31,6 +32,60 @@ const SHORT_ID_LENGTH = 8;
 const NEW_CATEGORY_VALUE = '__new_category__';
 const MARKDOWN_PLUGINS = [remarkGfm, remarkBreaks];
 const PRE_PROMPT_PREVIEW_LENGTH = 10;
+const RELEASE_BASE_VERSION = '1.0.8';
+const RELEASE_CHANNEL = 'stable';
+const RELEASE_UPDATES = [
+  { level: 'minor', label: 'guide-page-and-sidebar-polish' },
+];
+const GUIDE_SECTIONS = [
+  {
+    title: '1. 初次使用',
+    points: [
+      '左侧点击“全部内容”查看所有文字卡片，再按分类或标签快速筛选。',
+      '右上角“+”按钮可新建卡片，支持标题、正文、分类与标签。',
+      '点击卡片可进入全文页，支持复制正文、复制短ID与复制调取链接。',
+    ],
+  },
+  {
+    title: '2. 分类与检索',
+    points: [
+      '左侧分类支持聚合显示，点击分类后仅展示对应卡片。',
+      '顶部搜索框可按8位短ID或完整ID检索卡片。',
+      '删除分类时需要二次确认和密码，分类下卡片会自动改为未分类。',
+    ],
+  },
+  {
+    title: '3. AI文字助手',
+    points: [
+      '可在 DeepSeek、Gemini、ChatGPT 之间切换，模型上下文按模型分别保存。',
+      '前置提示词支持输入短ID拉取正文，作为当前会话的临时上下文。',
+      '提问与回答都支持一键复制，刷新页面后会话记录自动清空。',
+    ],
+  },
+  {
+    title: '4. 站内调取与安全',
+    points: [
+      '每张卡片都带8位短ID，站内可通过短ID调取对应纯文本信息。',
+      '调取接口仅返回文本正文，便于接入脚本、自动化或其他系统。',
+      '文流仅供与众内部使用，请勿外传避免无关人员访问敏感内容。',
+    ],
+  },
+];
+
+const parseSemver = (version) => {
+  const parts = String(version || '').split('.').map((part) => Number.parseInt(part, 10));
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part) || part < 0)) return [1, 0, 0];
+  return parts;
+};
+const bumpSemverByLevel = ([major, minor, patch], level) => {
+  if (level === 'major') return [major + 1, 0, 0];
+  if (level === 'minor') return [major, minor + 1, 0];
+  return [major, minor, patch + 1];
+};
+const buildReleaseVersion = (baseVersion, updates) => (updates || [])
+  .reduce((acc, update) => bumpSemverByLevel(acc, update?.level), parseSemver(baseVersion))
+  .join('.');
+const APP_VERSION_LABEL = 'V' + buildReleaseVersion(RELEASE_BASE_VERSION, RELEASE_UPDATES) + ' ' + RELEASE_CHANNEL.toUpperCase();
 
 const createEmptyHistoryMap = () => ({ deepseek: [], gemini: [], chatgpt: [] });
 const createEmptyCategoryDeleteState = () => ({
@@ -884,14 +939,24 @@ const App = () => {
         <div className="p-6">
           <div className="flex items-center gap-3 mb-10">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200"><span className="text-white font-bold text-xl">T</span></div>
-            <h1 className="text-2xl font-black tracking-tighter leading-none">TextFlow.文流</h1>
+            <h1 className="inline-flex items-end gap-1 text-2xl font-black tracking-tight leading-none">
+              <span className="leading-none">TextFlow.</span>
+              <span className="relative -top-[1px] text-[0.8em] leading-none">文流</span>
+            </h1>
           </div>
           <nav className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
-            <button onClick={() => handleCategorySelect(null)} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${!activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid size={18} /> 全部内容</button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('guide')}
+              className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'guide' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <BookOpen size={18} /> 使用指南
+            </button>
+            <button onClick={() => handleCategorySelect(null)} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'notes' && !activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid size={18} /> 全部内容</button>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-10 mb-4 ml-4">分类空间</p>
             {Array.isArray(categories) && categories.map((cat) => {
               const categoryKey = normalizeCategoryId(cat?.id);
-              const isActive = normalizeCategoryId(activeCategory) === categoryKey;
+              const isActive = activeTab === 'notes' && normalizeCategoryId(activeCategory) === categoryKey;
               const count = noteCountByCategory.get(categoryKey) || 0;
               return (
                 <div key={cat.id} className={`group flex items-center justify-between px-4 py-2.5 rounded-xl ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
@@ -912,7 +977,7 @@ const App = () => {
             })}
           </nav>
         </div>
-        <div className="mt-auto px-6 pt-6 pb-3 text-slate-300 text-[10px] font-bold flex items-center justify-center gap-2 text-center"><Settings size={12} /> V1.0.8 STABLE</div>
+        <div className="mt-auto px-6 pt-8 pb-4 text-slate-300 text-[10px] font-bold flex items-center justify-center gap-2 text-center"><Settings size={12} /> {APP_VERSION_LABEL}</div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] pb-14 sm:pb-16">
@@ -940,7 +1005,7 @@ const App = () => {
                   <button type="button" onClick={() => handleCategorySelect(null)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${!activeCategory ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500'}`}>全部分类</button>
                   {categories.map((cat) => {
                     const categoryKey = normalizeCategoryId(cat?.id);
-                    const isActive = normalizeCategoryId(activeCategory) === categoryKey;
+                    const isActive = activeTab === 'notes' && normalizeCategoryId(activeCategory) === categoryKey;
                     return (
                       <button
                         key={`mobile-${cat.id}`}
@@ -1028,7 +1093,7 @@ const App = () => {
                 )}
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'chat' ? (
             <div className="h-full flex flex-col bg-[#F8FAFC]">
               <div className="px-4 sm:px-8 py-4 sm:py-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3"><div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center"><MessageSquare size={20} /></div><h2 className="font-black text-lg">AI文字助手</h2></div>
@@ -1140,6 +1205,55 @@ const App = () => {
                   <textarea rows="4" className="w-full min-h-[10rem] sm:min-h-[11rem] p-4 sm:p-6 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
                   <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
                 </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
+              <div className="max-w-[76.8rem] mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
+                <section className="rounded-3xl border border-slate-200 bg-white px-5 sm:px-8 py-6 sm:py-8 shadow-sm">
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900">文流使用指南</h2>
+                  <p className="mt-3 text-sm sm:text-base font-medium leading-8 text-slate-600">
+                    文流（TextFlow.文流）用于沉淀和调用高频文本素材。你可以在“文字流”里管理卡片，在“AI文字助手”里结合上下文做创作与改写。
+                  </p>
+                </section>
+
+                <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+                  {GUIDE_SECTIONS.map((section) => (
+                    <article key={section.title} className="rounded-3xl border border-slate-200 bg-white px-5 sm:px-6 py-5 sm:py-6 shadow-sm">
+                      <h3 className="text-base sm:text-lg font-black text-slate-800">{section.title}</h3>
+                      <ul className="mt-3 space-y-2.5">
+                        {section.points.map((point) => (
+                          <li key={point} className="flex items-start gap-2.5 text-sm font-medium leading-7 text-slate-600">
+                            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))}
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white px-5 sm:px-8 py-6 sm:py-7 shadow-sm">
+                  <h3 className="text-base sm:text-lg font-black text-slate-800">常用入口速查</h3>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm font-medium text-slate-600">
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="font-black text-slate-700">新建卡片</p>
+                      <p className="mt-2 leading-7">右上角“+”按钮，填写标题/正文/分类后保存。</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="font-black text-slate-700">按ID检索</p>
+                      <p className="mt-2 leading-7">顶部搜索框支持短ID与完整ID模糊匹配。</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="font-black text-slate-700">AI上下文对话</p>
+                      <p className="mt-2 leading-7">在 AI文字助手 中连续提问，模型会继承当前会话上下文。</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="font-black text-slate-700">调取文本</p>
+                      <p className="mt-2 leading-7">站内外可通过短ID或链接调取文本信息</p>
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
           )}
@@ -1322,6 +1436,11 @@ const App = () => {
 };
 
 export default App;
+
+
+
+
+
 
 
 
