@@ -455,13 +455,51 @@ const App = () => {
   const copyText = async (text, token) => {
     const content = String(text || '');
     if (!content) return;
+
+    const fallbackCopy = (value) => {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-9999px';
+      textarea.style.left = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch {
+        ok = false;
+      }
+
+      document.body.removeChild(textarea);
+      return ok;
+    };
+
+    let copied = false;
+
     try {
-      await navigator.clipboard.writeText(content);
-      setCopiedToken(token);
-      window.setTimeout(() => setCopiedToken((prev) => (prev === token ? null : prev)), 1200);
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(content);
+        copied = true;
+      }
     } catch {
-      window.alert('复制失败，请手动复制');
+      copied = false;
     }
+
+    if (!copied) copied = fallbackCopy(content);
+
+    if (!copied) {
+      window.alert('复制失败，请手动复制');
+      return;
+    }
+
+    setCopiedToken(token);
+    window.setTimeout(() => setCopiedToken((prev) => (prev === token ? null : prev)), 1200);
   };
 
   const closeCategoryDeleteDialog = () => setCategoryDeleteState(createEmptyCategoryDeleteState());
@@ -1436,22 +1474,4 @@ const App = () => {
 };
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
