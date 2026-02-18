@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0 --port 5173 --strictPort",
     "build": "vite build",
     "build:gh": "vite build --mode github",
-    "lint": "eslint .",
+    "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "preview": "vite preview"
   },
   "dependencies": {

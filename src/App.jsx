@@ -27,7 +27,6 @@ const CHAT_PROVIDER_LABEL = { deepseek: 'DeepSeek-V3.2', gemini: 'Gemini 2.0 fla
 const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-chat', gemini: 'gemini-2.0-flash', chatgpt: 'gpt-4o-mini' };
 const EMPTY_NOTE = { id: null, title: '', content: '', category_id: '', tags: [] };
 const MAX_CONTEXT_MESSAGES = 12;
-const CATEGORY_DELETE_PASSWORD = '5185';
 const SHORT_ID_LENGTH = 8;
 const NEW_CATEGORY_VALUE = '__new_category__';
 const MARKDOWN_PLUGINS = [remarkGfm, remarkBreaks];
@@ -262,6 +261,7 @@ const useChatStream = (baseUrl) => {
       });
 
       const contentType = response.headers.get('content-type') || '';
+      const isSseResponse = /\btext\/event-stream\b/i.test(contentType);
 
       if (!response.ok) {
         let errorMessage = '';
@@ -292,17 +292,13 @@ const useChatStream = (baseUrl) => {
 
       const decoder = new TextDecoder('utf-8');
       let sseBuffer = '';
-      let looksLikeSse = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const decoded = decoder.decode(value, { stream: true });
-        sseBuffer += decoded;
-
-        if (!looksLikeSse && sseBuffer.includes('data:')) looksLikeSse = true;
-
-        if (looksLikeSse) {
+        if (isSseResponse) {
+          sseBuffer += decoded;
           sseBuffer = consumeSseBuffer(sseBuffer, (text) => {
             collected += text;
             onChunk?.(text);
@@ -315,16 +311,17 @@ const useChatStream = (baseUrl) => {
       }
 
       const tail = decoder.decode();
-      if (tail) sseBuffer += tail;
-
-      if (looksLikeSse && sseBuffer.trim()) {
-        consumeSseBuffer(`${sseBuffer}\n\n`, (text) => {
-          collected += text;
-          onChunk?.(text);
-        });
-      } else if (!looksLikeSse && sseBuffer) {
-        collected += sseBuffer;
-        onChunk?.(sseBuffer);
+      if (isSseResponse) {
+        if (tail) sseBuffer += tail;
+        if (sseBuffer.trim()) {
+          consumeSseBuffer(`${sseBuffer}\n\n`, (text) => {
+            collected += text;
+            onChunk?.(text);
+          });
+        }
+      } else if (tail) {
+        collected += tail;
+        onChunk?.(tail);
       }
 
       return collected;
@@ -400,14 +397,13 @@ const App = () => {
   const fetchData = useCallback(async () => {
     setConnStatus('checking');
     setConnErrorMessage('');
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const [notesRes, categoriesRes] = await Promise.all([
         fetch(`${SUPABASE_FUNC_URL}/notes`, { signal: controller.signal }),
         fetch(`${SUPABASE_FUNC_URL}/categories`, { signal: controller.signal }),
       ]);
-      clearTimeout(timeoutId);
 
       if (!notesRes.ok || !categoriesRes.ok) throw new Error('API 连接受限 (HTTP Error)');
 
@@ -424,6 +420,8 @@ const App = () => {
       setConnErrorMessage(String(err.message || err));
       setNotes(mockNotes);
       setCategories([{ id: '1', name: '系统演示' }]);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }, [mockNotes]);
 
@@ -521,9 +519,10 @@ const App = () => {
     const target = categoryDeleteState.category;
     if (!target?.id || categoryDeleteState.isSubmitting) return;
     const targetCategoryId = normalizeCategoryId(target.id);
+    const password = String(categoryDeleteState.password || '').trim();
 
-    if (categoryDeleteState.password !== CATEGORY_DELETE_PASSWORD) {
-      setCategoryDeleteState((prev) => ({ ...prev, error: '删除密码错误，请重新输入。' }));
+    if (!password) {
+      setCategoryDeleteState((prev) => ({ ...prev, error: '请输入删除密码。' }));
       return;
     }
 
@@ -540,7 +539,7 @@ const App = () => {
       const response = await fetch(`${SUPABASE_FUNC_URL}/categories/${encodeURIComponent(target.id)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: categoryDeleteState.password }),
+        body: JSON.stringify({ password }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) {
@@ -713,7 +712,7 @@ const App = () => {
       return;
     }
     try {
-      const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) throw new Error(result?.error || `删除失败 (HTTP ${response.status})`);
       setNotes((prev) => prev.filter((n) => n.id !== id));
