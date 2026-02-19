@@ -1295,6 +1295,12 @@ const App = () => {
             </div>
           )}
         </div>
+        {activeTab !== 'chat' && (
+          <footer className="shrink-0 px-4 pt-3 pb-4 text-center text-[11px] leading-5 text-slate-400">
+            <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
+            <p>内部使用 请勿外传</p>
+          </footer>
+        )}
       </div>
 
       {viewingNote && (
@@ -1445,13 +1451,6 @@ const App = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {activeTab !== 'chat' && (
-        <footer className="shrink-0 px-4 pt-3 pb-4 text-center text-[11px] leading-5 text-slate-400">
-          <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
-          <p>内部使用 请勿外传</p>
-        </footer>
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `
