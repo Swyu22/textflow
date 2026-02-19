@@ -24,7 +24,7 @@ import {
 const SUPABASE_FUNC_URL = 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api';
 const CHAT_PROVIDERS = ['deepseek', 'gemini', 'chatgpt'];
 const CHAT_PROVIDER_LABEL = { deepseek: 'DeepSeek-V3.2', gemini: 'Gemini 2.0 flash', chatgpt: 'ChatGPT 5.2 Thinking' };
-const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-chat', gemini: 'gemini-2.0-flash', chatgpt: 'gpt-4o-mini' };
+const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-reasoner', gemini: 'gemini-2.0-flash', chatgpt: 'gpt-4o-mini' };
 const EMPTY_NOTE = { id: null, title: '', content: '', category_id: '', tags: [] };
 const MAX_CONTEXT_MESSAGES = 12;
 const SHORT_ID_LENGTH = 8;
@@ -1017,7 +1017,7 @@ const App = () => {
         <div className="mt-auto px-6 pt-8 pb-4 text-slate-300 text-[10px] font-bold flex items-center justify-center gap-2 text-center"><Settings size={12} /> {APP_VERSION_LABEL}</div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] pb-14 sm:pb-16">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
         <header className="bg-white px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 shrink-0 z-10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex items-end gap-1 overflow-x-auto no-scrollbar">
@@ -1172,7 +1172,7 @@ const App = () => {
                 <div className={`max-w-[72rem] w-full mx-auto ${currentChatHistory.length === 0 && !chatError ? 'h-full flex flex-col' : 'space-y-6'}`}>
                   {chatError && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-bold flex items-center gap-2"><AlertCircle size={16} /> {chatError}</div>}
                   {currentChatHistory.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400"><MessageSquare size={64} /><p className="font-black mt-4 uppercase tracking-widest text-xs text-slate-500">开始连续对话（刷新后清空）</p></div>
+                    <div className="flex-1" />
                   ) : (
                     <div className="space-y-4">
                       {currentChatHistory.map((item) => {
@@ -1197,8 +1197,8 @@ const App = () => {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-8 pb-20 sm:pb-24 bg-[#F8FAFC]">
-                <div className="max-w-[72rem] w-full mx-auto mb-4 sm:mb-5">
+              <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-5 sm:pb-6 bg-[#F8FAFC]">
+                <div className="max-w-[24rem] w-full mx-auto mb-2 sm:mb-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
                     <div className="flex flex-col sm:flex-row gap-2.5">
                       <input
@@ -1238,8 +1238,8 @@ const App = () => {
                   </div>
                 </div>
 
-                <div className="max-w-[72rem] w-full mx-auto relative group">
-                  <textarea rows="4" className="w-full min-h-[10rem] sm:min-h-[11rem] p-4 sm:p-6 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
+                <div className="max-w-[24rem] w-full mx-auto relative group">
+                  <textarea rows="3" className="w-full min-h-[7rem] sm:min-h-[8rem] p-4 sm:p-5 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
                   <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
                 </div>
               </div>
@@ -1447,10 +1447,12 @@ const App = () => {
         </div>
       )}
 
-      <footer className="pointer-events-none fixed inset-x-0 bottom-2 z-40 px-4 text-center text-[11px] leading-5 text-slate-400">
-        <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
-        <p>内部使用 请勿外传</p>
-      </footer>
+      {activeTab !== 'chat' && (
+        <footer className="shrink-0 px-4 pt-3 pb-4 text-center text-[11px] leading-5 text-slate-400">
+          <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
+          <p>内部使用 请勿外传</p>
+        </footer>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         .tf-root { font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
