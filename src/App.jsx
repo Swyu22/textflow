@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-react';
 
-const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://pxndhifjedoizdgxdeiq.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
+const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
 const CHAT_PROVIDERS = ['deepseek', 'gemini', 'chatgpt'];
 const CHAT_PROVIDER_LABEL = { deepseek: 'DeepSeek Reasoner + Search', gemini: 'Gemini 3.0 Pro + Search', chatgpt: 'GPT 5.2 Thinking + Search' };
 const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-reasoner', gemini: 'gemini-3.0-pro', chatgpt: 'gpt-5.2' };
