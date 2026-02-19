@@ -21,10 +21,10 @@ import {
   X,
 } from 'lucide-react';
 
-const SUPABASE_FUNC_URL = 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api';
+const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://pxndhifjedoizdgxdeiq.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
 const CHAT_PROVIDERS = ['deepseek', 'gemini', 'chatgpt'];
-const CHAT_PROVIDER_LABEL = { deepseek: 'DeepSeek-V3.2', gemini: 'Gemini 2.0 flash', chatgpt: 'ChatGPT 5.2 Thinking' };
-const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-reasoner', gemini: 'gemini-2.0-flash', chatgpt: 'gpt-4o-mini' };
+const CHAT_PROVIDER_LABEL = { deepseek: 'DeepSeek Reasoner + Search', gemini: 'Gemini 3.0 Pro + Search', chatgpt: 'GPT 5.2 Thinking + Search' };
+const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-reasoner', gemini: 'gemini-3.0-pro', chatgpt: 'gpt-5.2' };
 const EMPTY_NOTE = { id: null, title: '', content: '', category_id: '', tags: [] };
 const MAX_CONTEXT_MESSAGES = 12;
 const SHORT_ID_LENGTH = 8;
@@ -227,7 +227,7 @@ const consumeSseBuffer = (rawBuffer, onText) => {
 const normalizeChatError = (message, provider) => {
   const msg = String(message || '请求失败');
   if (provider === 'gemini' && /models\/.+ is not found/i.test(msg)) {
-    return 'Gemini 模型不可用。前端已切换为 gemini-2.0-flash；若仍报错，请更新 Supabase Edge Function 的 Gemini 模型路由。';
+    return 'Gemini 模型不可用。前端已切换为 gemini-3.0-pro（并带回退模型）；若仍报错，请检查 Supabase Edge Function 的 Gemini 模型路由与权限。';
   }
   if (provider === 'gemini' && /Incorrect API key provided:\s*AIza/i.test(msg)) {
     return 'Gemini 请求被错误转发到了 OpenAI。请在 Supabase Edge Function 中将 gemini 路由到 Google 接口并使用 GEMINI_API_KEY。';
