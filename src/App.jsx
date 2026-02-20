@@ -1179,79 +1179,83 @@ const App = () => {
                   </div>
                 </div>
               )}
-              <div className={`flex-1 p-4 sm:p-8 lg:p-12 bg-[#F8FAFC] ${currentChatHistory.length === 0 && !chatError ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={chatScrollRef}>
-                <div className={`max-w-[72rem] w-full mx-auto ${currentChatHistory.length === 0 && !chatError ? 'h-full flex flex-col' : 'space-y-6'}`}>
-                  {chatError && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-bold flex items-center gap-2"><AlertCircle size={16} /> {chatError}</div>}
-                  {currentChatHistory.length === 0 ? (
-                    <div className="flex-1" />
-                  ) : (
-                    <div className="space-y-4">
-                      {currentChatHistory.map((item) => {
-                        const isUser = item.role === 'user';
-                        const copied = copiedToken === item.id;
-                        return (
-                          <div key={item.id} className={`w-full rounded-2xl border p-4 sm:p-5 shadow-sm ${isUser ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
-                            <div className="flex items-center justify-between mb-3">
-                              <span className={`text-xs font-black tracking-wide ${isUser ? 'text-blue-700' : 'text-slate-500'}`}>{isUser ? '你' : `AI · ${CHAT_PROVIDER_LABEL[item.provider] || item.provider}`}</span>
-                              <button onClick={() => copyText(item.content, item.id)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-700">{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? '已复制' : '复制'}</button>
-                            </div>
-                            <div className="tf-markdown prose prose-slate prose-a:text-blue-600 prose-a:underline prose-a:underline-offset-2 max-w-none text-sm leading-7">
-                              <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={{ a: MarkdownLink }}>
-                                {item.content || (isStreaming && !isUser ? '...' : '')}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-5 sm:pb-6 bg-[#F8FAFC]">
-                <div className="max-w-[24rem] w-full mx-auto mb-2 sm:mb-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-                    <div className="flex flex-col sm:flex-row gap-2.5">
-                      <input
-                        type="text"
-                        className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium outline-none focus:border-blue-300"
-                        placeholder="前置提示词 ID（输入短ID或完整ID）"
-                        value={prePromptIdInput}
-                        onChange={(e) => setPrePromptIdInput(e.target.value)}
-                        disabled={isPrePromptLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleFetchPrePrompt}
-                        disabled={isPrePromptLoading || !prePromptIdInput.trim()}
-                        className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isPrePromptLoading ? '拉取中...' : '确定'}
-                      </button>
-                    </div>
-
-                    {prePromptReference && (
-                      <div className="mt-3 rounded-xl border border-blue-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex items-center gap-2 text-xs font-semibold text-blue-700">
-                          <Check size={14} className="shrink-0" />
-                          <span className="truncate">引用内容：{prePromptReference.titlePreview}</span>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar" ref={chatScrollRef}>
+                <div className="min-h-full flex flex-col bg-[#F8FAFC]">
+                  <div className="flex-1 p-4 sm:p-8 lg:p-12">
+                    <div className={`max-w-[72rem] w-full mx-auto ${currentChatHistory.length === 0 && !chatError ? 'h-full flex flex-col' : 'space-y-6'}`}>
+                      {chatError && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-bold flex items-center gap-2"><AlertCircle size={16} /> {chatError}</div>}
+                      {currentChatHistory.length === 0 ? (
+                        <div className="flex-1" />
+                      ) : (
+                        <div className="space-y-4">
+                          {currentChatHistory.map((item) => {
+                            const isUser = item.role === 'user';
+                            const copied = copiedToken === item.id;
+                            return (
+                              <div key={item.id} className={`w-full rounded-2xl border p-4 sm:p-5 shadow-sm overflow-hidden ${isUser ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className={`text-xs font-black tracking-wide ${isUser ? 'text-blue-700' : 'text-slate-500'}`}>{isUser ? '你' : `AI · ${CHAT_PROVIDER_LABEL[item.provider] || item.provider}`}</span>
+                                  <button onClick={() => copyText(item.content, item.id)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-700">{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? '已复制' : '复制'}</button>
+                                </div>
+                                <div className="tf-markdown tf-chat-markdown prose prose-slate prose-a:text-blue-600 prose-a:underline prose-a:underline-offset-2 max-w-none text-sm leading-7">
+                                  <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={{ a: MarkdownLink }}>
+                                    {item.content || (isStreaming && !isUser ? '...' : '')}
+                                  </ReactMarkdown>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <button
-                          type="button"
-                          onClick={clearPrePromptReference}
-                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                          title="清除引用"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="max-w-[24rem] w-full mx-auto relative group">
-                  <textarea rows="3" className="w-full min-h-[7rem] sm:min-h-[8rem] p-4 sm:p-5 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
-                  <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
+                  <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-5 sm:pb-6 bg-[#F8FAFC] mt-auto">
+                    <div className="max-w-[24rem] w-full mx-auto mb-2 sm:mb-3">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row gap-2.5">
+                          <input
+                            type="text"
+                            className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium outline-none focus:border-blue-300"
+                            placeholder="前置提示词 ID（输入短ID或完整ID）"
+                            value={prePromptIdInput}
+                            onChange={(e) => setPrePromptIdInput(e.target.value)}
+                            disabled={isPrePromptLoading}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleFetchPrePrompt}
+                            disabled={isPrePromptLoading || !prePromptIdInput.trim()}
+                            className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isPrePromptLoading ? '拉取中...' : '确定'}
+                          </button>
+                        </div>
+
+                        {prePromptReference && (
+                          <div className="mt-3 rounded-xl border border-blue-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex items-center gap-2 text-xs font-semibold text-blue-700">
+                              <Check size={14} className="shrink-0" />
+                              <span className="truncate">引用内容：{prePromptReference.titlePreview}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={clearPrePromptReference}
+                              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                              title="清除引用"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="max-w-[24rem] w-full mx-auto relative group">
+                      <textarea rows="3" className="w-full min-h-[7rem] sm:min-h-[8rem] max-h-[14rem] overflow-y-auto p-4 sm:p-5 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
+                      <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1474,7 +1478,10 @@ const App = () => {
         .prose pre { background: #f1f5f9; padding: 1.25rem; border-radius: 1rem; overflow-x: auto; margin: 1rem 0; border: 1px solid #e2e8f0; }
         .prose code { color: #2563eb; font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.875em; }
         .tf-markdown p, .tf-markdown li, .tf-markdown blockquote { white-space: break-spaces; }
-        .tf-markdown { word-break: break-word; }
+        .tf-markdown { word-break: break-word; overflow-wrap: anywhere; }
+        .tf-chat-markdown, .tf-chat-markdown * { max-width: 100%; word-break: break-word; overflow-wrap: anywhere; }
+        .tf-chat-markdown pre { white-space: pre-wrap; overflow-x: hidden; }
+        .tf-chat-markdown code { white-space: break-spaces; }
         .tf-full-note p, .tf-full-note li, .tf-full-note blockquote, .tf-full-note h1, .tf-full-note h2, .tf-full-note h3, .tf-full-note h4 { white-space: break-spaces; line-height: 3.8; }
         .line-clamp-6 { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
         .animate-in { animation: tf-fade-in 0.4s ease-out; }
