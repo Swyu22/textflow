@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
@@ -383,6 +383,16 @@ const App = () => {
     () => chatHistoryByProvider[chatProvider] || [],
     [chatHistoryByProvider, chatProvider],
   );
+  const noteLookupByExternalId = useMemo(() => {
+    const lookup = new Map();
+    (notes || []).forEach((note) => {
+      const shortId = getNoteShortId(note).toLowerCase();
+      const fullId = String(note?.id || '').trim().toLowerCase();
+      if (shortId && !lookup.has(shortId)) lookup.set(shortId, note);
+      if (fullId && !lookup.has(fullId)) lookup.set(fullId, note);
+    });
+    return lookup;
+  }, [notes]);
   const topPrePromptStats = useMemo(
     () => Object.values(prePromptUsageStats || {})
       .sort((a, b) => (b.count || 0) - (a.count || 0) || (b.lastFetchedAt || 0) - (a.lastFetchedAt || 0))
@@ -433,7 +443,12 @@ const App = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
-    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    const container = chatScrollRef.current;
+    if (!container) return undefined;
+    const rafId = window.requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(rafId);
   }, [currentChatHistory, isStreaming]);
 
   useEffect(() => {
@@ -739,12 +754,8 @@ const App = () => {
   const findNoteByExternalId = useCallback((externalId) => {
     const target = String(externalId || '').trim().toLowerCase();
     if (!target) return null;
-    return (notes || []).find((note) => {
-      const shortId = getNoteShortId(note).toLowerCase();
-      const fullId = String(note?.id || '').trim().toLowerCase();
-      return shortId === target || fullId === target;
-    }) || null;
-  }, [notes]);
+    return noteLookupByExternalId.get(target) || null;
+  }, [noteLookupByExternalId]);
 
   const applyPrePromptReference = useCallback((reference) => {
     if (!reference?.id || !reference?.content) return;
@@ -913,12 +924,14 @@ const App = () => {
         provider: providerAtSend,
         contextMessages,
         onChunk: (chunk) => {
-          setChatHistoryByProvider((prev) => ({
-            ...prev,
-            [providerAtSend]: (prev[providerAtSend] || []).map((item) =>
-              item.id === assistantId ? { ...item, content: `${item.content}${chunk}` } : item,
-            ),
-          }));
+          startTransition(() => {
+            setChatHistoryByProvider((prev) => ({
+              ...prev,
+              [providerAtSend]: (prev[providerAtSend] || []).map((item) =>
+                item.id === assistantId ? { ...item, content: `${item.content}${chunk}` } : item,
+              ),
+            }));
+          });
         },
       });
     } catch (err) {
@@ -1094,7 +1107,7 @@ const App = () => {
                       const isTextCopied = copiedToken === noteTextToken;
                       const isIdCopied = copiedToken === noteIdToken;
                       return (
-                        <div key={note.id} onClick={() => setViewingNote(note)} className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[260px] sm:min-h-[300px]">
+                        <div key={note.id} onClick={() => setViewingNote(note)} className="tf-note-item bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[260px] sm:min-h-[300px]">
                           <div className="flex items-start justify-between gap-3 mb-4">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {shortId || '-'}</span>
@@ -1192,7 +1205,7 @@ const App = () => {
                             const isUser = item.role === 'user';
                             const copied = copiedToken === item.id;
                             return (
-                              <div key={item.id} className={`w-full rounded-2xl border p-4 sm:p-5 shadow-sm overflow-hidden ${isUser ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
+                              <div key={item.id} className={`tf-chat-item w-full rounded-2xl border p-4 sm:p-5 shadow-sm overflow-hidden ${isUser ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
                                 <div className="flex items-center justify-between mb-3">
                                   <span className={`text-xs font-black tracking-wide ${isUser ? 'text-blue-700' : 'text-slate-500'}`}>{isUser ? '你' : `AI · ${CHAT_PROVIDER_LABEL[item.provider] || item.provider}`}</span>
                                   <button onClick={() => copyText(item.content, item.id)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-700">{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? '已复制' : '复制'}</button>
@@ -1482,6 +1495,8 @@ const App = () => {
         .tf-chat-markdown, .tf-chat-markdown * { max-width: 100%; word-break: break-word; overflow-wrap: anywhere; }
         .tf-chat-markdown pre { white-space: pre-wrap; overflow-x: hidden; }
         .tf-chat-markdown code { white-space: break-spaces; }
+        .tf-note-item { content-visibility: auto; contain-intrinsic-size: 0 300px; }
+        .tf-chat-item { content-visibility: auto; contain-intrinsic-size: 0 180px; }
         .tf-full-note p, .tf-full-note li, .tf-full-note blockquote, .tf-full-note h1, .tf-full-note h2, .tf-full-note h3, .tf-full-note h4 { white-space: break-spaces; line-height: 3.8; }
         .line-clamp-6 { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
         .animate-in { animation: tf-fade-in 0.4s ease-out; }
