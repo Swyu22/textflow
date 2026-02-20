@@ -36,6 +36,11 @@ const RELEASE_BASE_VERSION = '1.0.8';
 const RELEASE_CHANNEL = 'stable';
 const RELEASE_UPDATES = [
   { level: 'minor', label: 'guide-page-and-sidebar-polish' },
+  { level: 'patch', label: 'supabase-api-key-header' },
+  { level: 'patch', label: 'chat-layout-bottom-scroll' },
+  { level: 'patch', label: 'chat-content-wrap-fix' },
+  { level: 'patch', label: 'react-perf-optimizations' },
+  { level: 'patch', label: 'a11y-and-style-hardening' },
 ];
 const GUIDE_SECTIONS = [
   {
