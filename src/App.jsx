@@ -141,16 +141,21 @@ const toDisplayMarkdown = (value) => String(value || '')
   .replace(/\n/g, '  \n');
 const MarkdownLink = ({ href, ...props }) => {
   const safeHref = normalizeHttpUrl(href);
+  if (!safeHref) {
+    return (
+      <span
+        {...props}
+        className="text-slate-500 underline underline-offset-2 break-all"
+      />
+    );
+  }
   return (
     <a
       {...props}
-      href={safeHref || '#'}
+      href={safeHref}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (!safeHref) e.preventDefault();
-      }}
+      onClick={(e) => { e.stopPropagation(); }}
       className="text-blue-600 underline underline-offset-2 break-all hover:text-blue-700"
     />
   );
@@ -1107,7 +1112,19 @@ const App = () => {
                       const isTextCopied = copiedToken === noteTextToken;
                       const isIdCopied = copiedToken === noteIdToken;
                       return (
-                        <div key={note.id} onClick={() => setViewingNote(note)} className="tf-note-item bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[260px] sm:min-h-[300px]">
+                        <div
+                          key={note.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setViewingNote(note)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setViewingNote(note);
+                            }
+                          }}
+                          className="tf-note-item bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[260px] sm:min-h-[300px]"
+                        >
                           <div className="flex items-start justify-between gap-3 mb-4">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {shortId || '-'}</span>
@@ -1481,27 +1498,6 @@ const App = () => {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .tf-root { font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
-        .tf-sidebar { height: 100vh; position: sticky; top: 0; flex-shrink: 0; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .prose pre { background: #f1f5f9; padding: 1.25rem; border-radius: 1rem; overflow-x: auto; margin: 1rem 0; border: 1px solid #e2e8f0; }
-        .prose code { color: #2563eb; font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.875em; }
-        .tf-markdown p, .tf-markdown li, .tf-markdown blockquote { white-space: break-spaces; }
-        .tf-markdown { word-break: break-word; overflow-wrap: anywhere; }
-        .tf-chat-markdown, .tf-chat-markdown * { max-width: 100%; word-break: break-word; overflow-wrap: anywhere; }
-        .tf-chat-markdown pre { white-space: pre-wrap; overflow-x: hidden; }
-        .tf-chat-markdown code { white-space: break-spaces; }
-        .tf-note-item { content-visibility: auto; contain-intrinsic-size: 0 300px; }
-        .tf-chat-item { content-visibility: auto; contain-intrinsic-size: 0 180px; }
-        .tf-full-note p, .tf-full-note li, .tf-full-note blockquote, .tf-full-note h1, .tf-full-note h2, .tf-full-note h3, .tf-full-note h4 { white-space: break-spaces; line-height: 3.8; }
-        .line-clamp-6 { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
-        .animate-in { animation: tf-fade-in 0.4s ease-out; }
-        @keyframes tf-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      ` }} />
     </div>
   );
 };
