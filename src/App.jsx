@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_Ci3qp9_9ZLBcbWodKeS19A_X39ZTrUk';
 const CHAT_PROVIDERS = ['deepseek', 'gemini', 'chatgpt'];
 const CHAT_PROVIDER_LABEL = { deepseek: 'DeepSeek Reasoner + Search', gemini: 'Gemini 3.0 Pro + Search', chatgpt: 'GPT 5.2 Thinking + Search' };
 const CHAT_MODEL_BY_PROVIDER = { deepseek: 'deepseek-reasoner', gemini: 'gemini-3.0-pro', chatgpt: 'gpt-5.2' };
@@ -180,6 +181,11 @@ const buildPromptWithContext = (prompt, contextMessages) => {
 };
 
 const tryParseJson = (v) => { try { return JSON.parse(v); } catch { return null; } };
+const withApiKeyHeaders = (headers = undefined) => {
+  const merged = new Headers(headers || {});
+  if (SUPABASE_PUBLISHABLE_KEY) merged.set('apikey', SUPABASE_PUBLISHABLE_KEY);
+  return merged;
+};
 const extractErrorMessage = (payload) => {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;
@@ -251,7 +257,7 @@ const useChatStream = (baseUrl) => {
       const response = await fetch(`${baseUrl}/chat`, {
         method: 'POST',
         signal: abortControllerRef.current.signal,
-        headers: { 'Content-Type': 'application/json' },
+        headers: withApiKeyHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           prompt: composedPrompt,
           provider,
@@ -401,8 +407,8 @@ const App = () => {
     const timeoutId = window.setTimeout(() => controller.abort(), 8000);
     try {
       const [notesRes, categoriesRes] = await Promise.all([
-        fetch(`${SUPABASE_FUNC_URL}/notes`, { signal: controller.signal }),
-        fetch(`${SUPABASE_FUNC_URL}/categories`, { signal: controller.signal }),
+        fetch(`${SUPABASE_FUNC_URL}/notes`, { signal: controller.signal, headers: withApiKeyHeaders() }),
+        fetch(`${SUPABASE_FUNC_URL}/categories`, { signal: controller.signal, headers: withApiKeyHeaders() }),
       ]);
 
       if (!notesRes.ok || !categoriesRes.ok) throw new Error('API 连接受限 (HTTP Error)');
@@ -538,7 +544,7 @@ const App = () => {
 
       const response = await fetch(`${SUPABASE_FUNC_URL}/categories/${encodeURIComponent(target.id)}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withApiKeyHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ password }),
       });
       const result = await response.json().catch(() => ({}));
@@ -582,7 +588,7 @@ const App = () => {
 
       const response = await fetch(`${SUPABASE_FUNC_URL}/categories`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withApiKeyHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ name }),
       });
       const result = await response.json().catch(() => ({}));
@@ -675,7 +681,7 @@ const App = () => {
 
       const response = await fetch(`${SUPABASE_FUNC_URL}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withApiKeyHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
       const result = await response.json().catch(() => ({}));
@@ -712,7 +718,10 @@ const App = () => {
       return;
     }
     try {
-      const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: withApiKeyHeaders(),
+      });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) throw new Error(result?.error || `删除失败 (HTTP ${response.status})`);
       setNotes((prev) => prev.filter((n) => n.id !== id));
@@ -805,7 +814,9 @@ const App = () => {
         showToast('未找到对应文案，请检查ID');
         return;
       } else {
-        const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(externalId)}`);
+        const response = await fetch(`${SUPABASE_FUNC_URL}/notes/${encodeURIComponent(externalId)}`, {
+          headers: withApiKeyHeaders(),
+        });
         const responseContentType = response.headers.get('content-type') || '';
         const isJsonResponse = responseContentType.includes('application/json');
         const payload = isJsonResponse ? await response.json().catch(() => null) : null;
