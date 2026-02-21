@@ -185,7 +185,7 @@ begin
     if v_room_id is not null then
       insert into public.room_members (room_id, user_id, nickname, joined_at, last_seen_at)
       values (v_room_id, v_user_id, null, now(), now())
-      on conflict (room_id, user_id)
+      on conflict on constraint room_members_pkey
       do update set last_seen_at = excluded.last_seen_at;
 
       perform public.log_chat_event('create', v_room_id, jsonb_build_object('room_code', v_code));
@@ -261,7 +261,7 @@ begin
 
   insert into public.room_members (room_id, user_id, nickname, joined_at, last_seen_at)
   values (v_room_id, v_user_id, null, now(), now())
-  on conflict (room_id, user_id)
+  on conflict on constraint room_members_pkey
   do update set last_seen_at = excluded.last_seen_at;
 
   perform public.log_chat_event('join', v_room_id, jsonb_build_object('room_code', v_code));
@@ -393,20 +393,21 @@ begin
     return false;
   end if;
 
-  if not exists (
+  v_destroyed := not exists (
     select 1
     from public.room_members rm
     where rm.room_id = p_room_id
-  ) then
-    delete from public.rooms r where r.id = p_room_id;
-    v_destroyed := true;
-  end if;
+  );
 
   perform public.log_chat_event(
     'leave',
     p_room_id,
     jsonb_build_object('room_destroyed', v_destroyed)
   );
+
+  if v_destroyed then
+    delete from public.rooms r where r.id = p_room_id;
+  end if;
 
   return v_destroyed;
 end;
