@@ -5,42 +5,56 @@ const firstRow = (value) => (Array.isArray(value) ? (value[0] || null) : value |
 
 const throwIfError = (error, fallbackMessage) => {
   if (!error) return;
-  const message = String(error.message || error.details || fallbackMessage || '请求失败');
+  const message = String(error.message || error.details || fallbackMessage || 'Request failed');
   throw new Error(message);
 };
 
-export const toChatErrorMessage = (error, fallback = '请求失败，请稍后重试') => {
+export const toChatErrorMessage = (error, fallback = 'Request failed, please retry') => {
   const raw = String(error?.message || error || '');
   if (!raw) return fallback;
-  if (raw.includes('JOIN_RATE_LIMIT_USER')) return '加入过于频繁：每分钟最多加入 10 次（按用户）';
-  if (raw.includes('JOIN_RATE_LIMIT_IP')) return '加入过于频繁：每分钟最多加入 10 次（按 IP）';
-  if (raw.includes('ROOM_NOT_FOUND_OR_EXPIRED')) return '房间不存在或已过期';
-  if (raw.includes('INVALID_ROOM_CODE')) return '房间码格式错误（仅支持 4 位数字）';
-  if (raw.includes('INVALID_NICKNAME')) return '昵称需为 1-20 字符';
-  if (raw.includes('NICKNAME_REQUIRED')) return '请先设置昵称';
-  if (raw.includes('INVALID_MESSAGE_LENGTH')) return '消息长度需在 1-500 字符';
-  if (raw.includes('ROOM_MEMBER_NOT_FOUND_OR_EXPIRED')) return '你已不在房间内，或房间已过期';
-  if (raw.includes('AUTH_REQUIRED')) return '匿名身份已失效，请刷新后重试';
+
+  if (raw.includes('ANON_AUTH_DISABLED')) {
+    return 'Anonymous sign-in is disabled. Enable it in Supabase Dashboard -> Authentication -> Providers -> Anonymous.';
+  }
+  if (/anonymous.*(disabled|disable)/i.test(raw)) {
+    return 'Anonymous sign-in is disabled in Supabase. Please enable Anonymous provider first.';
+  }
+  if (raw.includes('JOIN_RATE_LIMIT_USER')) return 'Join rate limit exceeded: max 10 attempts per minute (user).';
+  if (raw.includes('JOIN_RATE_LIMIT_IP')) return 'Join rate limit exceeded: max 10 attempts per minute (IP).';
+  if (raw.includes('ROOM_NOT_FOUND_OR_EXPIRED')) return 'Room not found or expired.';
+  if (raw.includes('INVALID_ROOM_CODE')) return 'Invalid room code format (must be 4 digits).';
+  if (raw.includes('INVALID_NICKNAME')) return 'Nickname must be 1-20 characters.';
+  if (raw.includes('NICKNAME_REQUIRED')) return 'Please set your nickname first.';
+  if (raw.includes('INVALID_MESSAGE_LENGTH')) return 'Message length must be between 1 and 500 characters.';
+  if (raw.includes('ROOM_MEMBER_NOT_FOUND_OR_EXPIRED')) return 'You are no longer in this room, or the room expired.';
+  if (raw.includes('AUTH_REQUIRED')) return 'Session expired. Refresh and retry.';
+
   return raw;
 };
 
 export const ensureAnonymousSession = async () => {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  throwIfError(sessionError, '获取会话失败');
+  throwIfError(sessionError, 'Failed to get session');
   if (sessionData?.session?.user) return sessionData.session.user;
 
   const { data, error } = await supabase.auth.signInAnonymously();
-  throwIfError(error, '匿名登录失败');
-  if (!data?.user) throw new Error('匿名登录失败');
+  if (error) {
+    const raw = String(error.message || error.details || error || '');
+    if (/anonymous.*(disabled|disable)/i.test(raw)) {
+      throw new Error('ANON_AUTH_DISABLED');
+    }
+  }
+  throwIfError(error, 'Anonymous sign-in failed');
+  if (!data?.user) throw new Error('Anonymous sign-in failed');
   return data.user;
 };
 
 export const createRoom = async () => {
   const { data, error } = await supabase.rpc('create_room');
-  throwIfError(error, '创建房间失败');
+  throwIfError(error, 'Create room failed');
   const row = firstRow(data);
   if (!row?.room_id || !row?.room_code || !row?.expires_at) {
-    throw new Error('创建房间失败，请稍后重试');
+    throw new Error('Create room failed, please retry');
   }
   return {
     roomId: row.room_id,
@@ -52,22 +66,22 @@ export const createRoom = async () => {
 export const joinRoom = async (roomCode) => {
   if (!isRoomCodeValid(roomCode)) throw new Error('INVALID_ROOM_CODE');
   const { data, error } = await supabase.rpc('join_room', { p_code: roomCode });
-  throwIfError(error, '加入房间失败');
+  throwIfError(error, 'Join room failed');
   const row = firstRow(data);
-  if (!row?.room_id || !row?.expires_at) throw new Error('房间不存在或已过期');
+  if (!row?.room_id || !row?.expires_at) throw new Error('ROOM_NOT_FOUND_OR_EXPIRED');
   return { roomId: row.room_id, expiresAt: row.expires_at };
 };
 
 export const setNickname = async (roomId, nicknameInput) => {
   const nickname = normalizeNickname(nicknameInput);
   const { error } = await supabase.rpc('set_nickname', { p_room_id: roomId, p_nickname: nickname });
-  throwIfError(error, '设置昵称失败');
+  throwIfError(error, 'Set nickname failed');
   return nickname;
 };
 
 export const sendMessage = async (roomId, content) => {
   const { data, error } = await supabase.rpc('send_message', { p_room_id: roomId, p_content: content });
-  throwIfError(error, '发送失败');
+  throwIfError(error, 'Send message failed');
   const row = firstRow(data);
   return row
     ? {
@@ -87,7 +101,7 @@ export const fetchMessages = async (roomId) => {
     .eq('room_id', roomId)
     .order('created_at', { ascending: true })
     .limit(2000);
-  throwIfError(error, '读取历史消息失败');
+  throwIfError(error, 'Fetch messages failed');
   return Array.isArray(data) ? data : [];
 };
 
@@ -97,18 +111,18 @@ export const fetchMyMemberState = async (roomId) => {
     .select('nickname')
     .eq('room_id', roomId)
     .maybeSingle();
-  throwIfError(error, '读取成员信息失败');
+  throwIfError(error, 'Fetch member state failed');
   return data || null;
 };
 
 export const touchMember = async (roomId) => {
   const { error } = await supabase.rpc('touch_member', { p_room_id: roomId });
-  throwIfError(error, '心跳失败');
+  throwIfError(error, 'Heartbeat failed');
 };
 
 export const leaveRoom = async (roomId) => {
   const { data, error } = await supabase.rpc('leave_room', { p_room_id: roomId });
-  throwIfError(error, '退出房间失败');
+  throwIfError(error, 'Leave room failed');
   return Boolean(data);
 };
 
@@ -119,7 +133,7 @@ export const logChatEvent = async (eventType, roomId = null, eventMeta = {}) => 
     p_event_meta: eventMeta,
   });
   if (error) {
-    // Avoid blocking main flow for analytics.
+    // Do not block UX for analytics failure.
     console.warn('log_chat_event failed', error.message || error);
   }
 };

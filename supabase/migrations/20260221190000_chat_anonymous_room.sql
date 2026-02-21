@@ -160,10 +160,10 @@ begin
     raise exception 'AUTH_REQUIRED';
   end if;
 
-  update public.rooms
+  update public.rooms r
   set status = 'closed'
-  where status = 'active'
-    and expires_at <= now();
+  where r.status = 'active'
+    and r.expires_at <= now();
 
   while v_try_count < 30 loop
     v_try_count := v_try_count + 1;
@@ -173,9 +173,9 @@ begin
     v_expires_at := null;
 
     begin
-      insert into public.rooms (code, created_at, expires_at, status)
+      insert into public.rooms as r (code, created_at, expires_at, status)
       values (v_code, now(), now() + interval '1 hour', 'active')
-      returning id, expires_at
+      returning r.id, r.expires_at
         into v_room_id, v_expires_at;
     exception
       when unique_violation then
