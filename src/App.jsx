@@ -20,6 +20,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
+import EmbeddedChatRoomTab from './chat/EmbeddedChatRoomTab';
 
 const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_Ci3qp9_9ZLBcbWodKeS19A_X39ZTrUk';
@@ -1057,6 +1058,7 @@ const App = () => {
             <div className="flex items-end gap-1 overflow-x-auto no-scrollbar">
               <button onClick={() => setActiveTab('notes')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'notes' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>文字流</button>
               <button onClick={() => setActiveTab('chat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>AI文字助手</button>
+              <button onClick={() => setActiveTab('roomchat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'roomchat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>临时ChatRoom</button>
             </div>
             <div className="w-full sm:w-auto sm:ml-auto pb-3 sm:pb-4 flex items-center gap-2 sm:gap-4">
               <div className="relative flex-1 sm:flex-none">
@@ -1294,6 +1296,8 @@ const App = () => {
                 </div>
               </div>
             </div>
+          ) : activeTab === 'roomchat' ? (
+            <EmbeddedChatRoomTab />
           ) : (
             <div className="h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
               <div className="max-w-[76.8rem] mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
@@ -1345,7 +1349,7 @@ const App = () => {
             </div>
           )}
         </div>
-        {activeTab !== 'chat' && (
+        {activeTab !== 'chat' && activeTab !== 'roomchat' && (
           <footer className="shrink-0 px-4 pt-3 pb-4 text-center text-[11px] leading-5 text-slate-400">
             <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
             <p>内部使用 请勿外传</p>
