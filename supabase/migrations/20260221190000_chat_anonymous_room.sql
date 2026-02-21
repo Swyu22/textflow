@@ -486,13 +486,6 @@ for select
 to authenticated
 using (
   user_id = auth.uid()
-  and exists (
-    select 1
-    from public.rooms r
-    where r.id = room_members.room_id
-      and r.status = 'active'
-      and r.expires_at > now()
-  )
 );
 
 drop policy if exists "chat_messages_member_select_active" on public.messages;
