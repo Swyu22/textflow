@@ -12,6 +12,22 @@ body {
   margin: 0;
 }
 
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
 .tf-root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;

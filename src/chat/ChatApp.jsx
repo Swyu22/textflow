@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Copy, LogOut, MessageSquareText, Plus, Timer, UserRound } from 'lucide-react';
 import {
   createRoom,
@@ -24,17 +24,29 @@ import {
   normalizeRoomCodeInput,
 } from './utils';
 
+const parseChatPath = (pathname) => {
+  const cleaned = String(pathname || '').replace(/\/+$/, '') || '/';
+  if (cleaned === '/chat') return { type: 'landing' };
+  const match = cleaned.match(/^\/chat\/([0-9]{4})$/);
+  if (match) return { type: 'room', code: match[1] };
+  return { type: 'not_found' };
+};
+
+const buildRouteState = (pathname, navState = null) => ({
+  ...parseChatPath(pathname),
+  navState: navState && typeof navState === 'object' ? navState : null,
+});
+
 const copyText = async (value) => {
   const text = String(value || '');
   if (!text) return false;
-
   try {
     if (navigator.clipboard?.writeText && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
       return true;
     }
   } catch {
-    // fallback
+    // fallback below
   }
 
   const textarea = document.createElement('textarea');
@@ -42,38 +54,35 @@ const copyText = async (value) => {
   textarea.setAttribute('readonly', '');
   textarea.style.position = 'fixed';
   textarea.style.top = '-9999px';
-  textarea.style.left = '-9999px';
   document.body.appendChild(textarea);
   textarea.select();
-
-  let copied = false;
+  let ok = false;
   try {
-    copied = document.execCommand('copy');
+    ok = document.execCommand('copy');
   } catch {
-    copied = false;
+    ok = false;
   }
-
   document.body.removeChild(textarea);
-  return copied;
+  return ok;
 };
 
 const mergeMessages = (prev, nextList) => {
   const map = new Map();
-  (prev || []).forEach((item) => map.set(String(item.id), item));
-  (nextList || []).forEach((item) => map.set(String(item.id), item));
+  for (const item of prev || []) map.set(String(item.id), item);
+  for (const item of nextList || []) map.set(String(item.id), item);
   return Array.from(map.values()).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 };
 
 const toTime = (iso) => {
-  const value = new Date(iso);
-  if (Number.isNaN(value.getTime())) return '--:--';
-  return value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const time = new Date(iso);
+  if (Number.isNaN(time.getTime())) return '--:--';
+  return time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 };
 
-const ChatRoomLanding = ({ onEnterRoom }) => {
+const ChatLanding = ({ onNavigateRoom }) => {
   const [joinCode, setJoinCode] = useState('');
-  const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState('');
+  const [busyAction, setBusyAction] = useState('');
 
   const onCreate = async () => {
     setError('');
@@ -81,18 +90,15 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
     try {
       await ensureAnonymousSession();
       const created = await createRoom();
-      onEnterRoom(created.roomCode, {
+      onNavigateRoom(created.roomCode, {
         code: created.roomCode,
         roomId: created.roomId,
         expiresAt: created.expiresAt,
         joined: true,
       });
     } catch (err) {
-      setError(toChatErrorMessage(err, '鍒涘缓澶辫触锛岃绋嶅悗閲嶈瘯'));
-      logChatEvent('error', null, {
-        stage: 'create_room_from_tab',
-        reason: String(err?.message || err),
-      }).catch(() => {});
+      setError(toChatErrorMessage(err, '创建失败，请重试'));
+      logChatEvent('error', null, { stage: 'create', reason: String(err?.message || err) }).catch(() => {});
     } finally {
       setBusyAction('');
     }
@@ -102,7 +108,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
     setError('');
     const code = normalizeRoomCodeInput(joinCode);
     if (!isRoomCodeValid(code)) {
-      setError('璇疯緭鍏?4 浣嶆暟瀛楁埧闂寸爜');
+      setError('请输入 4 位数字房间码');
       return;
     }
 
@@ -110,16 +116,16 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
     try {
       await ensureAnonymousSession();
       const joined = await joinRoom(code);
-      onEnterRoom(code, {
+      onNavigateRoom(code, {
         code,
         roomId: joined.roomId,
         expiresAt: joined.expiresAt,
         joined: true,
       });
     } catch (err) {
-      setError(toChatErrorMessage(err, '鍔犲叆澶辫触锛岃绋嶅悗閲嶈瘯'));
+      setError(toChatErrorMessage(err, '加入失败，请重试'));
       logChatEvent('error', null, {
-        stage: 'join_room_from_tab',
+        stage: 'join_from_landing',
         room_code: code,
         reason: String(err?.message || err),
       }).catch(() => {});
@@ -129,81 +135,80 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
   };
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
-      <div className="mx-auto max-w-[70rem] px-4 py-6 sm:px-8 sm:py-10">
-        <div className="rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-8 sm:py-8">
-          <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
-              <MessageSquareText size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">涓存椂 ChatRoom</h2>
-              <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
-                鍖垮悕鏄电О鑱婂ぉ锛屾埧闂寸爜 4 浣嶆暟瀛椼€傛埧闂村垱寤哄悗 1 灏忔椂鑷姩澶辨晥锛屾渶鍚庝竴浜洪€€鍑虹珛鍗抽攢姣併€?
-              </p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-cyan-50 px-4 py-10 sm:py-16">
+      <div className="mx-auto w-full max-w-2xl rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xl backdrop-blur sm:p-9">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl bg-cyan-100 p-3 text-cyan-700">
+            <MessageSquareText size={22} />
           </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            <button
-              type="button"
-              onClick={onCreate}
-              disabled={busyAction !== ''}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Plus size={16} />
-              {busyAction === 'create' ? '鍒涘缓涓?..' : '鏂板缓鎴块棿'}
-            </button>
-            <button
-              type="button"
-              onClick={onJoin}
-              disabled={busyAction !== ''}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-sm font-black text-slate-700 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {busyAction === 'join' ? '鍔犲叆涓?..' : '鍔犲叆鎴块棿'}
-            </button>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">匿名房间码聊天室</h1>
+            <p className="mt-2 text-sm font-medium leading-6 text-slate-600">
+              无需注册，输入 4 位码即可加入。房间创建后 1 小时自动失效，最后一人退出立即销毁。
+            </p>
           </div>
-
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <label htmlFor="tab-room-code" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500">
-              鎴块棿鐮侊紙4 浣嶆暟瀛楋級
-            </label>
-            <input
-              id="tab-room-code"
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={4}
-              value={joinCode}
-              onChange={(e) => {
-                setJoinCode(normalizeRoomCodeInput(e.target.value));
-                if (error) setError('');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onJoin();
-              }}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-lg font-black tracking-[0.3em] text-slate-900 outline-none focus:border-blue-500"
-              placeholder="0000"
-            />
-          </div>
-
-          {error && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-              {error}
-            </div>
-          )}
         </div>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onCreate}
+            disabled={busyAction !== ''}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-4 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus size={16} />
+            {busyAction === 'create' ? '创建中...' : '新建房间'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onJoin}
+            disabled={busyAction !== ''}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-4 text-sm font-black text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {busyAction === 'join' ? '加入中...' : '加入房间'}
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <label htmlFor="join-room-code" className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
+            房间码（4 位数字）
+          </label>
+          <input
+            id="join-room-code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={4}
+            value={joinCode}
+            onChange={(e) => {
+              setJoinCode(normalizeRoomCodeInput(e.target.value));
+              if (error) setError('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onJoin();
+            }}
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-lg font-black tracking-[0.35em] text-slate-900 outline-none placeholder:tracking-normal placeholder:text-sm placeholder:font-medium focus:border-cyan-500"
+            placeholder="0000"
+          />
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
+const ChatRoom = ({ code, bootstrap, onBackToLanding }) => {
   const [roomId, setRoomId] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [messages, setMessages] = useState([]);
   const [bootState, setBootState] = useState('loading');
-  const [statusText, setStatusText] = useState('姝ｅ湪杩炴帴...');
+  const [statusText, setStatusText] = useState('正在连接...');
   const [error, setError] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -249,10 +254,10 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
   useEffect(() => {
     let cancelled = false;
 
-    const init = async () => {
+    const initRoom = async () => {
       setBootState('loading');
       setError('');
-      setStatusText('姝ｅ湪杩炴帴...');
+      setStatusText('正在连接...');
       setMessages([]);
       setRoomId('');
       setExpiresAt('');
@@ -264,16 +269,16 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
 
       try {
         await ensureAnonymousSession();
-
         const canUseBootstrap = (
           bootstrap?.joined === true
-          && bootstrap?.code === roomCode
+          && bootstrap?.code === code
           && typeof bootstrap?.roomId === 'string'
           && typeof bootstrap?.expiresAt === 'string'
         );
+
         const joined = canUseBootstrap
           ? { roomId: bootstrap.roomId, expiresAt: bootstrap.expiresAt }
-          : await joinRoom(roomCode);
+          : await joinRoom(code);
         if (cancelled) return;
 
         setRoomId(joined.roomId);
@@ -293,22 +298,22 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
         setBootState('ready');
       } catch (err) {
         if (cancelled) return;
-        setError(toChatErrorMessage(err, '鎴块棿涓嶅瓨鍦ㄦ垨宸茶繃鏈?));
+        setError(toChatErrorMessage(err, '房间不存在或已过期'));
         setBootState('error');
         logChatEvent('error', null, {
-          stage: 'room_init_from_tab',
-          room_code: roomCode,
+          stage: 'room_init',
+          room_code: code,
           reason: String(err?.message || err),
         }).catch(() => {});
       }
     };
 
-    init();
+    initRoom();
 
     return () => {
       cancelled = true;
     };
-  }, [bootstrap, roomCode]);
+  }, [bootstrap, code]);
 
   useEffect(() => {
     if (!roomId) return undefined;
@@ -318,20 +323,20 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
       (row) => appendMessage(row),
       async (status) => {
         if (status === 'CHANNEL_ERROR') {
-          setStatusText('瀹炴椂杩炴帴寮傚父锛屾鍦ㄩ噸杩?..');
+          setStatusText('实时连接异常，正在重连...');
           return;
         }
         if (status === 'TIMED_OUT') {
-          setStatusText('杩炴帴瓒呮椂锛屾鍦ㄩ噸杩?..');
+          setStatusText('连接超时，正在重连...');
           return;
         }
         if (status === 'SUBSCRIBED') {
-          setStatusText('瀹炴椂杩炴帴姝ｅ父');
+          setStatusText('实时连接正常');
           if (subscribedOnceRef.current) {
             try {
               await refreshMessages();
             } catch {
-              // keep current stream
+              // ignore refresh error and keep realtime stream alive
             }
           }
           subscribedOnceRef.current = true;
@@ -350,6 +355,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
 
   useEffect(() => {
     if (!roomId || isExpired) return undefined;
+
     touchMember(roomId).catch(() => {});
     const timer = window.setInterval(() => {
       touchMember(roomId).catch(() => {});
@@ -360,23 +366,24 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
   useEffect(() => {
     if (!isExpired || !roomId || expiredHandledRef.current) return;
     expiredHandledRef.current = true;
-    setStatusText('鎴块棿宸插埌鏈?);
-    setError('鎴块棿宸插埌鏈燂紝璁板綍宸查攢姣?涓嶅彲鍐嶅彂閫?);
+    setStatusText('房间已到期');
+    setError('房间已到期，记录已销毁/不可再发送');
+
     const currentChannel = channelRef.current;
     channelRef.current = null;
     unsubscribeMessages(currentChannel).catch(() => {});
     leaveRoom(roomId).catch(() => {});
-    logChatEvent('expired', roomId, { room_code: roomCode }).catch(() => {});
-  }, [isExpired, roomCode, roomId]);
+    logChatEvent('expired', roomId, { room_code: code }).catch(() => {});
+  }, [code, isExpired, roomId]);
 
   const onSaveNickname = async () => {
     const normalized = normalizeNickname(nicknameDraft);
     if (!normalized || normalized.length > 20) {
-      setError('鏄电О闇€涓?1-20 瀛楃锛屼笖涓嶈兘鍏ㄧ┖鏍?);
+      setError('昵称需为 1-20 字符，且不能全空格');
       return;
     }
-    if (!roomId) return;
 
+    if (!roomId) return;
     setSavingNickname(true);
     setError('');
     try {
@@ -384,7 +391,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
       setNicknameState(normalized);
       setNicknameModalOpen(false);
     } catch (err) {
-      setError(toChatErrorMessage(err, '璁剧疆鏄电О澶辫触'));
+      setError(toChatErrorMessage(err, '设置昵称失败'));
     } finally {
       setSavingNickname(false);
     }
@@ -394,12 +401,13 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
     if (!roomId || isExpired) return;
     if (!nickname) {
       setNicknameModalOpen(true);
-      setError('璇峰厛璁剧疆鏄电О');
+      setError('请先设置昵称');
       return;
     }
+
     const content = String(messageInput || '').trim();
     if (!isMessageContentValid(content)) {
-      setError('娑堟伅闇€涓?1-500 瀛楃锛屼笖涓嶈兘鍏ㄧ┖鏍?);
+      setError('消息需为 1-500 字符，且不能全空格');
       return;
     }
 
@@ -411,20 +419,17 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
       setMessageInput('');
       touchMember(roomId).catch(() => {});
     } catch (err) {
-      setError(toChatErrorMessage(err, '鍙戦€佸け璐?));
-      logChatEvent('error', roomId, {
-        stage: 'send_message_from_tab',
-        reason: String(err?.message || err),
-      }).catch(() => {});
+      setError(toChatErrorMessage(err, '发送失败'));
+      logChatEvent('error', roomId, { stage: 'send_message', reason: String(err?.message || err) }).catch(() => {});
     } finally {
       setIsSending(false);
     }
   };
 
   const onCopyCode = async () => {
-    const ok = await copyText(roomCode);
+    const ok = await copyText(code);
     if (!ok) {
-      setError('澶嶅埗澶辫触锛岃鎵嬪姩澶嶅埗');
+      setError('复制失败，请手动复制');
       return;
     }
     setCopied(true);
@@ -437,7 +442,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
     try {
       if (roomId) await leaveRoom(roomId);
     } catch (err) {
-      setError(toChatErrorMessage(err, '閫€鍑烘埧闂村け璐?));
+      setError(toChatErrorMessage(err, '退出房间失败'));
     } finally {
       const currentChannel = channelRef.current;
       channelRef.current = null;
@@ -448,9 +453,9 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
 
   if (bootState === 'loading') {
     return (
-      <div className="h-full bg-[#F8FAFC] p-4 sm:p-8">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-500">
-          姝ｅ湪杩涘叆鎴块棿 {roomCode} ...
+      <div className="min-h-screen bg-slate-100 px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+          正在进入房间 {code} ...
         </div>
       </div>
     );
@@ -458,16 +463,16 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
 
   if (bootState === 'error') {
     return (
-      <div className="h-full bg-[#F8FAFC] p-4 sm:p-8">
-        <div className="rounded-3xl border border-red-200 bg-white p-6 text-center">
-          <p className="text-base font-bold text-red-600">{error || '鎴块棿涓嶅彲鐢?}</p>
+      <div className="min-h-screen bg-slate-100 px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-8 text-center">
+          <p className="text-base font-bold text-red-600">{error || '房间不可用'}</p>
           <button
             type="button"
             onClick={onBackToLanding}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             <ArrowLeft size={16} />
-            杩斿洖涓存椂ChatRoom
+            返回聊天首页
           </button>
         </div>
       </div>
@@ -475,57 +480,55 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#F8FAFC] pb-[env(safe-area-inset-bottom)]">
-      <div className="px-4 pb-4 pt-4 sm:px-8 sm:pt-6">
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
-          <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+    <div className="min-h-screen bg-slate-100">
+      <div className="mx-auto flex h-screen max-w-5xl flex-col px-3 py-3 sm:px-4 sm:py-4">
+        <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
             <button
               type="button"
               onClick={onBackToLanding}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:text-sm"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:text-sm"
             >
               <ArrowLeft size={16} />
-              杩斿洖
+              返回
             </button>
 
-            <div className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 sm:col-span-1 sm:justify-start">
-              <span className="text-xs font-bold text-slate-500">鎴块棿鐮?/span>
+            <div className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2">
+              <span className="text-xs font-bold text-slate-500">房间码</span>
               <button
                 type="button"
                 onClick={onCopyCode}
-                className="inline-flex items-center gap-1 text-sm font-black text-slate-900 hover:text-blue-700"
+                className="inline-flex items-center gap-1 text-sm font-black text-slate-900 hover:text-cyan-700"
               >
-                {roomCode}
+                {code}
                 <Copy size={14} />
               </button>
-              <span className="text-[11px] font-semibold text-blue-700">{copied ? '宸插鍒? : ''}</span>
+              <span className="text-[11px] font-semibold text-cyan-700">{copied ? '已复制' : ''}</span>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 sm:text-sm">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 sm:text-sm">
               <Timer size={14} />
-              {isExpired ? '宸插埌鏈? : `鍓╀綑 ${formatRemainingTime(remainingMs)}`}
+              {isExpired ? '已到期' : `剩余 ${formatRemainingTime(remainingMs)}`}
             </div>
 
             <button
               type="button"
               onClick={onLeave}
               disabled={leaving}
-              className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 disabled:opacity-60 sm:text-sm"
+              className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 disabled:opacity-60 sm:text-sm"
             >
               <LogOut size={14} />
-              {leaving ? '閫€鍑轰腑...' : '閫€鍑?}
+              {leaving ? '退出中...' : '退出'}
             </button>
           </div>
           <p className="mt-2 text-xs font-medium text-slate-500">{statusText}</p>
-        </div>
-      </div>
+        </header>
 
-      <div className="min-h-0 flex-1 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-8 sm:pb-6">
-        <div className="h-full min-h-0 flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <main className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             {messages.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-medium text-slate-500">
-                鏆傛棤娑堟伅锛屽紑濮嬭亰澶╁惂銆?
+                暂无消息，开始聊天吧。
               </div>
             ) : (
               <div className="space-y-3">
@@ -533,7 +536,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
                   <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 sm:p-4">
                     <div className="mb-1.5 flex items-center gap-2 text-xs font-bold text-slate-500">
                       <UserRound size={13} />
-                      <span>{item.nickname || '鍖垮悕鐢ㄦ埛'}</span>
+                      <span>{item.nickname || '匿名用户'}</span>
                       <span className="text-slate-400">{toTime(item.created_at)}</span>
                     </div>
                     <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{item.content || ''}</p>
@@ -544,7 +547,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
           </div>
 
           <div className="border-t border-slate-200 bg-slate-50 p-3 sm:p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex items-end gap-2">
               <textarea
                 rows={2}
                 value={messageInput}
@@ -560,21 +563,21 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
                 }}
                 maxLength={500}
                 disabled={isExpired || nicknameModalOpen || isSending}
-                placeholder={isExpired ? '鎴块棿宸插埌鏈燂紝鏃犳硶鍙戦€佹秷鎭? : '杈撳叆娑堟伅锛孍nter 鍙戦€?}
-                className="min-h-[68px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100"
+                placeholder={isExpired ? '房间已到期，无法发送消息' : '输入消息，Enter 发送'}
+                className="min-h-[70px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-100"
               />
               <button
                 type="button"
                 onClick={onSend}
                 disabled={isExpired || nicknameModalOpen || isSending}
-                className="w-full sm:w-auto rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSending ? '鍙戦€佷腑...' : '鍙戦€?}
+                {isSending ? '发送中...' : '发送'}
               </button>
             </div>
 
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span>{nickname ? `鏄电О锛?{nickname}` : '鏈缃樀绉?}</span>
+              <span>{nickname ? `昵称：${nickname}` : '未设置昵称'}</span>
               <span>{messageInput.trim().length}/500</span>
             </div>
 
@@ -584,14 +587,15 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
               </div>
             )}
           </div>
-        </div>
+        </main>
       </div>
 
       {nicknameModalOpen && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-black text-slate-900">璁剧疆鑱婂ぉ鏄电О</h2>
-            <p className="mt-1 text-sm font-medium text-slate-600">鏄电О浠呭湪褰撳墠鎴块棿鏄剧ず锛屼笉浼氬睍绀鸿处鍙疯韩浠戒俊鎭€?/p>
+            <h2 className="text-lg font-black text-slate-900">设置聊天昵称</h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">昵称仅在当前房间显示，不会展示 TextFlow 账号信息。</p>
+
             <input
               type="text"
               value={nicknameDraft}
@@ -600,17 +604,19 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') onSaveNickname();
               }}
-              className="mt-4 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-              placeholder="璇疯緭鍏?1-20 瀛楁樀绉?
+              className="mt-4 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold outline-none focus:border-cyan-500"
+              placeholder="请输入 1-20 字昵称"
+              autoFocus
             />
             <p className="mt-1 text-right text-xs text-slate-400">{normalizeNickname(nicknameDraft).length}/20</p>
+
             <button
               type="button"
               onClick={onSaveNickname}
               disabled={savingNickname}
-              className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"
+              className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              {savingNickname ? '淇濆瓨涓?..' : '纭杩涘叆'}
+              {savingNickname ? '保存中...' : '确认进入'}
             </button>
           </div>
         </div>
@@ -619,33 +625,47 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
   );
 };
 
-const EmbeddedChatRoomTab = () => {
-  const [viewState, setViewState] = useState({ mode: 'landing', roomCode: '', bootstrap: null });
+const ChatNotFound = ({ onBack }) => (
+  <div className="min-h-screen bg-slate-100 px-4 py-10">
+    <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center">
+      <h1 className="text-xl font-black text-slate-900">聊天路径无效</h1>
+      <p className="mt-2 text-sm font-medium text-slate-600">请通过 `/chat` 进入并创建/加入房间。</p>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+      >
+        <ArrowLeft size={16} />
+        返回聊天首页
+      </button>
+    </div>
+  </div>
+);
 
-  const onEnterRoom = (roomCode, bootstrap = null) => {
-    setViewState({
-      mode: 'room',
-      roomCode,
-      bootstrap,
-    });
-  };
+const ChatApp = () => {
+  const [route, setRoute] = useState(() => buildRouteState(window.location.pathname, window.history.state));
 
-  const onBackToLanding = () => {
-    setViewState({ mode: 'landing', roomCode: '', bootstrap: null });
-  };
+  useEffect(() => {
+    const onPopState = (event) => setRoute(buildRouteState(window.location.pathname, event.state));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
-  if (viewState.mode === 'room' && viewState.roomCode) {
-    return (
-      <ChatRoomPanel
-        roomCode={viewState.roomCode}
-        bootstrap={viewState.bootstrap}
-        onBackToLanding={onBackToLanding}
-      />
-    );
+  const navigateTo = useCallback((path, replace = false, state = null) => {
+    if (replace) window.history.replaceState(state, '', path);
+    else window.history.pushState(state, '', path);
+    setRoute(buildRouteState(path, state));
+  }, []);
+
+  if (route.type === 'landing') {
+    return <ChatLanding onNavigateRoom={(code, bootstrapState) => navigateTo(`/chat/${code}`, false, bootstrapState)} />;
   }
 
-  return <ChatRoomLanding onEnterRoom={onEnterRoom} />;
+  if (route.type === 'room') {
+    return <ChatRoom code={route.code} bootstrap={route.navState} onBackToLanding={() => navigateTo('/chat', true, null)} />;
+  }
+
+  return <ChatNotFound onBack={() => navigateTo('/chat', true, null)} />;
 };
 
-export default EmbeddedChatRoomTab;
-
+export default ChatApp;

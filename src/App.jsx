@@ -8,6 +8,7 @@ import {
   Check,
   Copy,
   LayoutGrid,
+  Menu,
   MessageSquare,
   Plus,
   SquarePen,
@@ -42,6 +43,7 @@ const RELEASE_UPDATES = [
   { level: 'patch', label: 'chat-content-wrap-fix' },
   { level: 'patch', label: 'react-perf-optimizations' },
   { level: 'patch', label: 'a11y-and-style-hardening' },
+  { level: 'patch', label: 'responsive-web-mobile-adaptation' },
 ];
 const GUIDE_SECTIONS = [
   {
@@ -385,6 +387,7 @@ const App = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categoryCreateError, setCategoryCreateError] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const [currentNote, setCurrentNote] = useState(EMPTY_NOTE);
   const chatScrollRef = useRef(null);
@@ -475,6 +478,13 @@ const App = () => {
     }, 2600);
     return () => window.clearTimeout(timer);
   }, [uiToast]);
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 768) setIsMobileSidebarOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const handleCategorySelect = useCallback((categoryId) => {
     setActiveTab('notes');
@@ -989,42 +999,72 @@ const App = () => {
   return (
     <div className="tf-root flex h-[100dvh] bg-[#F8FAFC] text-slate-900 overflow-hidden">
       {connStatus === 'offline' && (
-        <div className="fixed top-0 left-0 right-0 z-[999] bg-red-600 text-white text-[10px] font-bold py-2 px-6 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
+        <div aria-live="assertive" className="fixed top-0 left-0 right-0 z-[999] bg-red-600 text-white text-[10px] font-bold py-2 px-6 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
           <div className="flex items-center gap-2"><WifiOff size={14} /> 后端连接异常: {String(connErrorMessage)}</div>
           <button onClick={fetchData} className="bg-white/20 px-3 py-1 rounded-full text-[10px] hover:bg-white/30">尝试重连</button>
         </div>
       )}
 
       {uiToast && (
-        <div className={`fixed right-4 top-16 z-[1201] max-w-xs sm:max-w-sm rounded-xl border px-4 py-3 shadow-xl backdrop-blur ${uiToast.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+        <div aria-live="polite" className={`fixed right-4 top-16 z-[1201] max-w-xs sm:max-w-sm rounded-xl border px-4 py-3 shadow-xl backdrop-blur ${uiToast.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
           <div className="flex items-start gap-2">
             {uiToast.type === 'success' ? <Check size={16} className="mt-0.5 shrink-0" /> : <AlertCircle size={16} className="mt-0.5 shrink-0" />}
             <p className="text-xs font-semibold leading-5 flex-1">{uiToast.message}</p>
-            <button type="button" onClick={() => setUiToast(null)} className="p-0.5 opacity-70 hover:opacity-100">
+            <button type="button" onClick={() => setUiToast(null)} className="p-0.5 opacity-70 hover:opacity-100" aria-label="关闭提示">
               <X size={14} />
             </button>
           </div>
         </div>
       )}
 
-      <aside className="tf-sidebar w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex shrink-0">
+      {isMobileSidebarOpen && (
+        <button
+          type="button"
+          aria-label="关闭侧边栏"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 z-[1040] bg-slate-900/35 backdrop-blur-[1px] md:hidden"
+        />
+      )}
+
+      <aside className={`fixed inset-y-0 left-0 z-[1100] w-[17rem] border-r border-slate-200 bg-white flex flex-col shrink-0 transition-transform duration-200 ease-out md:relative md:z-auto md:w-64 md:translate-x-0 ${isMobileSidebarOpen ? 'translate-x-0 shadow-2xl md:shadow-none' : '-translate-x-full md:shadow-none'}`}>
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200"><span className="text-white font-bold text-xl">T</span></div>
-            <h1 className="inline-flex items-end gap-1 text-2xl font-black tracking-tight leading-none">
-              <span className="leading-none">TextFlow.</span>
-              <span className="relative -top-[1px] text-[0.8em] leading-none">文流</span>
-            </h1>
+          <div className="mb-8 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 shrink-0"><span className="text-white font-bold text-xl">T</span></div>
+              <h1 className="inline-flex min-w-0 items-end gap-1 text-2xl font-black tracking-tight leading-none">
+                <span className="leading-none truncate">TextFlow.</span>
+                <span className="relative -top-[1px] text-[0.8em] leading-none shrink-0">文流</span>
+              </h1>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="md:hidden p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+              aria-label="关闭导航"
+            >
+              <X size={16} />
+            </button>
           </div>
           <nav className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
             <button
               type="button"
-              onClick={() => setActiveTab('guide')}
+              onClick={() => {
+                setActiveTab('guide');
+                setIsMobileSidebarOpen(false);
+              }}
               className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'guide' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               <BookOpen size={18} /> 使用指南
             </button>
-            <button onClick={() => handleCategorySelect(null)} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'notes' && !activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid size={18} /> 全部内容</button>
+            <button
+              onClick={() => {
+                handleCategorySelect(null);
+                setIsMobileSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'notes' && !activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <LayoutGrid size={18} /> 全部内容
+            </button>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-10 mb-4 ml-4">分类空间</p>
             {Array.isArray(categories) && categories.map((cat) => {
               const categoryKey = normalizeCategoryId(cat?.id);
@@ -1032,7 +1072,14 @@ const App = () => {
               const count = noteCountByCategory.get(categoryKey) || 0;
               return (
                 <div key={cat.id} className={`group flex items-center justify-between px-4 py-2.5 rounded-xl ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
-                  <button type="button" onClick={() => handleCategorySelect(categoryKey)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCategorySelect(categoryKey);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                  >
                     <span className="truncate">{cat.name}</span>
                     <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
                   </button>
@@ -1041,6 +1088,7 @@ const App = () => {
                     onClick={() => openCategoryDeleteDialog(cat)}
                     className="ml-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="删除分类"
+                    aria-label={`删除分类 ${cat.name}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -1053,7 +1101,7 @@ const App = () => {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
-        <header className="bg-white px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 shrink-0 z-10">
+        <header className="bg-white px-4 sm:px-6 lg:px-8 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:pt-5 shrink-0 z-10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex items-end gap-1 overflow-x-auto no-scrollbar">
               <button onClick={() => setActiveTab('notes')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'notes' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>文字流</button>
@@ -1061,11 +1109,19 @@ const App = () => {
               <button onClick={() => setActiveTab('roomchat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'roomchat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>临时ChatRoom</button>
             </div>
             <div className="w-full sm:w-auto sm:ml-auto pb-3 sm:pb-4 flex items-center gap-2 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="md:hidden p-2.5 rounded-2xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
+                aria-label="打开侧边栏"
+              >
+                <Menu size={18} />
+              </button>
               <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                <input type="text" placeholder="搜索短ID / 全ID..." className="pl-9 pr-4 py-2 bg-slate-100 rounded-full text-xs w-full sm:w-56 focus:outline-none focus:bg-white border border-transparent focus:border-blue-100" value={searchId} onChange={(e) => setSearchId(e.target.value)} />
+                <input type="text" name="note-search-id" autoComplete="off" placeholder="搜索短ID / 全ID..." className="pl-9 pr-4 py-2 bg-slate-100 rounded-full text-xs w-full sm:w-56 focus:outline-none focus:bg-white border border-transparent focus:border-blue-100" value={searchId} onChange={(e) => setSearchId(e.target.value)} />
               </div>
-              <button onClick={openNewNoteModal} className="p-2.5 sm:p-3 bg-blue-600 text-white rounded-2xl shadow-xl hover:bg-blue-700 shrink-0"><Plus size={22} /></button>
+              <button onClick={openNewNoteModal} aria-label="新建卡片" className="p-2.5 sm:p-3 bg-blue-600 text-white rounded-2xl shadow-xl hover:bg-blue-700 shrink-0"><Plus size={22} /></button>
             </div>
           </div>
         </header>
@@ -1111,7 +1167,7 @@ const App = () => {
                 {filteredNotes.length === 0 ? (
                   <div className="h-full grid place-items-center text-slate-400 text-sm font-bold">暂无匹配笔记</div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-8">
                     {filteredNotes.map((note) => {
                       const shortId = getNoteShortId(note);
                       const noteTextToken = `note-text-${note.id}`;
@@ -1130,7 +1186,7 @@ const App = () => {
                               setViewingNote(note);
                             }
                           }}
-                          className="tf-note-item bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[260px] sm:min-h-[300px]"
+                          className="tf-note-item bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-slate-200 shadow-sm hover:shadow-xl cursor-pointer hover:-translate-y-1 transition-all flex flex-col min-h-[220px] sm:min-h-[300px]"
                         >
                           <div className="flex items-start justify-between gap-3 mb-4">
                             <div className="flex items-center gap-2">
@@ -1169,7 +1225,7 @@ const App = () => {
                             >
                               {isTextCopied ? '已复制文本' : '复制文本'}
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); requestDeleteNote(note.id); }} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); requestDeleteNote(note.id); }} aria-label={`删除卡片 ${String(note.title || '无标题')}`} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18} /></button>
                           </div>
                         </div>
                       );
@@ -1247,8 +1303,8 @@ const App = () => {
                     </div>
                   </div>
 
-                  <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-5 sm:pb-6 bg-[#F8FAFC] mt-auto">
-                    <div className="max-w-[24rem] w-full mx-auto mb-2 sm:mb-3">
+                  <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:pb-6 bg-[#F8FAFC] mt-auto">
+                    <div className="max-w-[24rem] sm:max-w-[32rem] lg:max-w-[40rem] w-full mx-auto mb-2 sm:mb-3">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
                         <div className="flex flex-col sm:flex-row gap-2.5">
                           <input
@@ -1280,6 +1336,7 @@ const App = () => {
                               onClick={clearPrePromptReference}
                               className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                               title="清除引用"
+                              aria-label="清除引用内容"
                             >
                               <X size={14} />
                             </button>
@@ -1288,9 +1345,9 @@ const App = () => {
                       </div>
                     </div>
 
-                    <div className="max-w-[24rem] w-full mx-auto relative group">
+                    <div className="max-w-[24rem] sm:max-w-[32rem] lg:max-w-[40rem] w-full mx-auto relative group">
                       <textarea rows="3" className="w-full min-h-[7rem] sm:min-h-[8rem] max-h-[14rem] overflow-y-auto p-4 sm:p-5 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium" placeholder={`向 ${CHAT_PROVIDER_LABEL[chatProvider]} 提问...`} value={chatPrompt} onChange={(e) => setChatPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChat(); } }} />
-                      <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
+                      <div className="absolute bottom-4 right-4">{isStreaming ? <button onClick={stopStreaming} aria-label="停止生成" className="p-3 bg-slate-900 text-white rounded-xl shadow-lg"><StopCircle size={20} /></button> : <button onClick={onChat} aria-label="发送提问" className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"><Send size={20} /></button>}</div>
                     </div>
                   </div>
                 </div>
@@ -1365,7 +1422,7 @@ const App = () => {
                 <h3 className="text-xl md:text-2xl font-black truncate">{String(viewingNote.title || '正文')}</h3>
                 <p className="text-xs font-semibold text-slate-400 mt-5 font-mono">短ID: {getNoteShortId(viewingNote) || '-'}</p>
               </div>
-              <button onClick={() => setViewingNote(null)} className="p-2 border rounded-full hover:bg-slate-50 shrink-0"><X size={24} /></button>
+              <button onClick={() => setViewingNote(null)} aria-label="关闭预览" className="p-2 border rounded-full hover:bg-slate-50 shrink-0"><X size={24} /></button>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-50/70">
               <article className="max-w-[53rem] mx-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10">
@@ -1408,7 +1465,7 @@ const App = () => {
           <div className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b flex justify-between items-center">
               <h3 className="text-xl font-black">{currentNote.id ? '编辑内容' : '新建内容'}</h3>
-              <button onClick={() => { setSaveError(''); setCategoryCreateError(''); setIsAddingCategory(false); setNewCategoryName(''); setIsModalOpen(false); }} className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>
+              <button onClick={() => { setSaveError(''); setCategoryCreateError(''); setIsAddingCategory(false); setNewCategoryName(''); setIsModalOpen(false); }} aria-label="关闭编辑弹窗" className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>
             </div>
             <div className="p-5 sm:p-8 space-y-6 max-h-[60vh] overflow-y-auto">
               <input type="text" className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100 font-bold outline-none" placeholder="标题..." value={currentNote.title} onChange={(e) => setCurrentNote({ ...currentNote, title: e.target.value })} />
@@ -1469,7 +1526,7 @@ const App = () => {
           <div className="bg-white w-full max-w-xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b flex justify-between items-center">
               <h3 className="text-xl font-black text-red-600">删除分类</h3>
-              <button onClick={closeCategoryDeleteDialog} className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>
+              <button onClick={closeCategoryDeleteDialog} aria-label="关闭删除分类弹窗" className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>
             </div>
             <div className="p-5 sm:p-8 space-y-5">
               <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
