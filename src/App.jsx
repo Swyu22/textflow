@@ -1106,7 +1106,7 @@ const App = () => {
             <div className="flex items-end gap-1 overflow-x-auto no-scrollbar">
               <button onClick={() => setActiveTab('notes')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'notes' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>文字流</button>
               <button onClick={() => setActiveTab('chat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>AI文字助手</button>
-              <button onClick={() => setActiveTab('roomchat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'roomchat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>临时ChatRoom</button>
+              <button onClick={() => setActiveTab('roomchat')} className={`px-5 sm:px-8 py-3 sm:py-4 rounded-t-2xl text-xs sm:text-sm font-black whitespace-nowrap ${activeTab === 'roomchat' ? 'text-blue-600 border-b-2 border-blue-600 bg-slate-50' : 'text-slate-400 hover:text-slate-600'}`}>FlowChat</button>
             </div>
             <div className="w-full sm:w-auto sm:ml-auto pb-3 sm:pb-4 flex items-center gap-2 sm:gap-4">
               <button

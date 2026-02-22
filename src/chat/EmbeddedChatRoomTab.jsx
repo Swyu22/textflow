@@ -137,9 +137,9 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               <MessageSquareText size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">临时 ChatRoom</h2>
+              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">FlowChat</h2>
               <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
-                匿名昵称聊天，房间码 4 位数字。房间创建后 1 小时自动失效，最后一人退出立即销毁。
+                房间码为四位数字，房间创建1小时或所有人退出后自动失效
               </p>
             </div>
           </div>
@@ -158,7 +158,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               type="button"
               onClick={onJoin}
               disabled={busyAction !== ''}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-sm font-black text-slate-700 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-500 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyAction === 'join' ? '加入中...' : '加入房间'}
             </button>
@@ -467,7 +467,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             <ArrowLeft size={16} />
-            返回临时 ChatRoom
+            返回 FlowChat
           </button>
         </div>
       </div>
