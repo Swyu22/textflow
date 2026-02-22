@@ -24,4 +24,14 @@ describe('mobile viewport policy', () => {
     })).toBe(false);
     expect(resolveViewportContent(false)).toBe(DEFAULT_VIEWPORT_CONTENT);
   });
+
+  it('treats iPad desktop-mode UA as mobile to avoid missing zoom lock', () => {
+    expect(isLikelyMobileContext({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15',
+      coarsePointer: true,
+      screenWidth: 1366,
+      maxTouchPoints: 5,
+      platform: 'MacIntel',
+    })).toBe(true);
+  });
 });
