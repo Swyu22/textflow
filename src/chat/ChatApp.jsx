@@ -606,7 +606,6 @@ const ChatRoom = ({ code, bootstrap, onBackToLanding }) => {
               }}
               className="mt-4 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold outline-none focus:border-cyan-500"
               placeholder="请输入 1-20 字昵称"
-              autoFocus
             />
             <p className="mt-1 text-right text-xs text-slate-400">{normalizeNickname(nicknameDraft).length}/20</p>
 
