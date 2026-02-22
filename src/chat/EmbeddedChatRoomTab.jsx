@@ -88,7 +88,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
         joined: true,
       });
     } catch (err) {
-      setError(toChatErrorMessage(err, '鍒涘缓澶辫触锛岃绋嶅悗閲嶈瘯'));
+      setError(toChatErrorMessage(err, '创建失败，请稍后重试'));
       logChatEvent('error', null, {
         stage: 'create_room_from_tab',
         reason: String(err?.message || err),
@@ -102,7 +102,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
     setError('');
     const code = normalizeRoomCodeInput(joinCode);
     if (!isRoomCodeValid(code)) {
-      setError('璇疯緭鍏?4 浣嶆暟瀛楁埧闂寸爜');
+      setError('请输入 4 位数字房间码');
       return;
     }
 
@@ -117,7 +117,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
         joined: true,
       });
     } catch (err) {
-      setError(toChatErrorMessage(err, '鍔犲叆澶辫触锛岃绋嶅悗閲嶈瘯'));
+      setError(toChatErrorMessage(err, '加入失败，请稍后重试'));
       logChatEvent('error', null, {
         stage: 'join_room_from_tab',
         room_code: code,
@@ -137,9 +137,9 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               <MessageSquareText size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">涓存椂 ChatRoom</h2>
+              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">临时 ChatRoom</h2>
               <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
-                鍖垮悕鏄电О鑱婂ぉ锛屾埧闂寸爜 4 浣嶆暟瀛椼€傛埧闂村垱寤哄悗 1 灏忔椂鑷姩澶辨晥锛屾渶鍚庝竴浜洪€€鍑虹珛鍗抽攢姣併€?
+                匿名昵称聊天，房间码 4 位数字。房间创建后 1 小时自动失效，最后一人退出立即销毁。
               </p>
             </div>
           </div>
@@ -152,7 +152,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus size={16} />
-              {busyAction === 'create' ? '鍒涘缓涓?..' : '鏂板缓鎴块棿'}
+              {busyAction === 'create' ? '创建中...' : '新建房间'}
             </button>
             <button
               type="button"
@@ -160,13 +160,13 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               disabled={busyAction !== ''}
               className="rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-sm font-black text-slate-700 hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busyAction === 'join' ? '鍔犲叆涓?..' : '鍔犲叆鎴块棿'}
+              {busyAction === 'join' ? '加入中...' : '加入房间'}
             </button>
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <label htmlFor="tab-room-code" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500">
-              鎴块棿鐮侊紙4 浣嶆暟瀛楋級
+              房间码（4 位数字）
             </label>
             <input
               id="tab-room-code"
@@ -203,7 +203,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
   const [expiresAt, setExpiresAt] = useState('');
   const [messages, setMessages] = useState([]);
   const [bootState, setBootState] = useState('loading');
-  const [statusText, setStatusText] = useState('姝ｅ湪杩炴帴...');
+  const [statusText, setStatusText] = useState('正在连接...');
   const [error, setError] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -252,7 +252,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
     const init = async () => {
       setBootState('loading');
       setError('');
-      setStatusText('姝ｅ湪杩炴帴...');
+      setStatusText('正在连接...');
       setMessages([]);
       setRoomId('');
       setExpiresAt('');
@@ -318,15 +318,15 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
       (row) => appendMessage(row),
       async (status) => {
         if (status === 'CHANNEL_ERROR') {
-          setStatusText('瀹炴椂杩炴帴寮傚父锛屾鍦ㄩ噸杩?..');
+          setStatusText('实时连接异常，正在重试...');
           return;
         }
         if (status === 'TIMED_OUT') {
-          setStatusText('杩炴帴瓒呮椂锛屾鍦ㄩ噸杩?..');
+          setStatusText('连接超时，正在重试...');
           return;
         }
         if (status === 'SUBSCRIBED') {
-          setStatusText('瀹炴椂杩炴帴姝ｅ父');
+          setStatusText('实时连接正常');
           if (subscribedOnceRef.current) {
             try {
               await refreshMessages();
@@ -384,7 +384,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
       setNicknameState(normalized);
       setNicknameModalOpen(false);
     } catch (err) {
-      setError(toChatErrorMessage(err, '璁剧疆鏄电О澶辫触'));
+      setError(toChatErrorMessage(err, '设置昵称失败'));
     } finally {
       setSavingNickname(false);
     }
@@ -394,7 +394,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
     if (!roomId || isExpired) return;
     if (!nickname) {
       setNicknameModalOpen(true);
-      setError('璇峰厛璁剧疆鏄电О');
+      setError('请先设置昵称');
       return;
     }
     const content = String(messageInput || '').trim();
@@ -424,7 +424,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
   const onCopyCode = async () => {
     const ok = await copyText(roomCode);
     if (!ok) {
-      setError('澶嶅埗澶辫触锛岃鎵嬪姩澶嶅埗');
+      setError('复制失败，请手动复制');
       return;
     }
     setCopied(true);
@@ -450,7 +450,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
     return (
       <div className="h-full bg-[#F8FAFC] p-4 sm:p-8">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-500">
-          姝ｅ湪杩涘叆鎴块棿 {roomCode} ...
+          正在进入房间 {roomCode} ...
         </div>
       </div>
     );
@@ -467,7 +467,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             <ArrowLeft size={16} />
-            杩斿洖涓存椂ChatRoom
+            返回临时 ChatRoom
           </button>
         </div>
       </div>
@@ -485,7 +485,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:text-sm"
             >
               <ArrowLeft size={16} />
-              杩斿洖
+              返回
             </button>
 
             <div className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 sm:col-span-1 sm:justify-start">
@@ -525,7 +525,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
           <div ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             {messages.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-medium text-slate-500">
-                鏆傛棤娑堟伅锛屽紑濮嬭亰澶╁惂銆?
+                暂无消息，开始聊天吧。
               </div>
             ) : (
               <div className="space-y-3">
@@ -533,7 +533,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
                   <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 sm:p-4">
                     <div className="mb-1.5 flex items-center gap-2 text-xs font-bold text-slate-500">
                       <UserRound size={13} />
-                      <span>{item.nickname || '鍖垮悕鐢ㄦ埛'}</span>
+                      <span>{item.nickname || '匿名用户'}</span>
                       <span className="text-slate-400">{toTime(item.created_at)}</span>
                     </div>
                     <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{item.content || ''}</p>
@@ -590,7 +590,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
       {nicknameModalOpen && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-black text-slate-900">璁剧疆鑱婂ぉ鏄电О</h2>
+            <h2 className="text-lg font-black text-slate-900">设置聊天昵称</h2>
             <p className="mt-1 text-sm font-medium text-slate-600">昵称仅在当前房间显示，不会暴露账号身份信息。</p>
             <input
               type="text"
