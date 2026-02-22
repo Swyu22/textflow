@@ -21,7 +21,7 @@ describe('EmbeddedChatRoomTab copy', () => {
     });
 
     const expectedChineseCopy = [
-      'FlowChat',
+      'FlowChat.一阅即散',
       '房间码为四位数字，房间创建1小时或所有人退出后自动失效',
       '房间码（4 位数字）',
       '正在连接...',
@@ -37,8 +37,12 @@ describe('EmbeddedChatRoomTab copy', () => {
 
     expect(source).not.toContain('临时 ChatRoom');
     expect(source).not.toContain('匿名昵称聊天，房间码 4 位数字。');
+    expect(source).toContain("返回流式聊天");
     expect(source).toContain(
-      "className=\"inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-500 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60\"",
+      "className=\"inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-sm font-black text-slate-900 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60\"",
+    );
+    expect(source).toContain(
+      "className=\"inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60\"",
     );
   });
 });

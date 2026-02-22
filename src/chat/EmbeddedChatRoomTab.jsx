@@ -137,7 +137,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               <MessageSquareText size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">FlowChat</h2>
+              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">FlowChat.一阅即散</h2>
               <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
                 房间码为四位数字，房间创建1小时或所有人退出后自动失效
               </p>
@@ -149,7 +149,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               type="button"
               onClick={onCreate}
               disabled={busyAction !== ''}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-sm font-black text-slate-900 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus size={16} />
               {busyAction === 'create' ? '创建中...' : '新建房间'}
@@ -158,7 +158,7 @@ const ChatRoomLanding = ({ onEnterRoom }) => {
               type="button"
               onClick={onJoin}
               disabled={busyAction !== ''}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-500 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyAction === 'join' ? '加入中...' : '加入房间'}
             </button>
@@ -467,7 +467,7 @@ const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             <ArrowLeft size={16} />
-            返回 FlowChat
+            返回流式聊天
           </button>
         </div>
       </div>
