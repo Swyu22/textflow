@@ -8,9 +8,11 @@ import {
   Check,
   Copy,
   LayoutGrid,
+  Lock,
   Menu,
   MessageSquare,
   Plus,
+  RotateCcw,
   SquarePen,
   Search,
   Send,
@@ -22,6 +24,12 @@ import {
   X,
 } from 'lucide-react';
 import EmbeddedChatRoomTab from './chat/EmbeddedChatRoomTab';
+import {
+  buildAdminPasswordHeaders,
+  createTrashAccessState,
+  getVisibleNotes,
+  sortTrashedNotes,
+} from './trash';
 
 const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_Ci3qp9_9ZLBcbWodKeS19A_X39ZTrUk';
@@ -37,6 +45,7 @@ const PRE_PROMPT_PREVIEW_LENGTH = 10;
 const RELEASE_BASE_VERSION = '1.0.8';
 const RELEASE_CHANNEL = 'stable';
 const RELEASE_UPDATES = [
+  { level: 'minor', label: 'notes-recycle-bin' },
   { level: 'minor', label: 'guide-page-and-sidebar-polish' },
   { level: 'patch', label: 'supabase-api-key-header' },
   { level: 'patch', label: 'chat-layout-bottom-scroll' },
@@ -52,6 +61,7 @@ const GUIDE_SECTIONS = [
       '左侧点击“全部内容”查看所有文字卡片，再按分类或标签快速筛选。',
       '右上角“+”按钮可新建卡片，支持标题、正文、分类与标签。',
       '点击卡片可进入全文页，支持复制正文、复制短ID与复制调取链接。',
+      '删除卡片不会立刻彻底清除，而是先移入回收站，输入密码后可恢复或彻底删除。',
     ],
   },
   {
@@ -104,6 +114,11 @@ const createEmptyCategoryDeleteState = () => ({
   error: '',
   isSubmitting: false,
 });
+const formatDateTime = (value) => {
+  const timestamp = Date.parse(String(value || ''));
+  if (!Number.isFinite(timestamp)) return '未知时间';
+  return new Date(timestamp).toLocaleString('zh-CN', { hour12: false });
+};
 const toShortId = (rawId) => String(rawId ?? '')
   .replace(/[^a-zA-Z0-9]/g, '')
   .slice(0, SHORT_ID_LENGTH)
@@ -379,6 +394,10 @@ const App = () => {
   const [uiToast, setUiToast] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [categoryDeleteState, setCategoryDeleteState] = useState(() => createEmptyCategoryDeleteState());
+  const [trashAccessState, setTrashAccessState] = useState(() => createTrashAccessState());
+  const [trashedNotes, setTrashedNotes] = useState([]);
+  const [isTrashLoading, setIsTrashLoading] = useState(false);
+  const [trashPendingNoteId, setTrashPendingNoteId] = useState('');
   const [connStatus, setConnStatus] = useState('checking');
   const [connErrorMessage, setConnErrorMessage] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -442,7 +461,7 @@ const App = () => {
       if (notesJson?.ok === false) throw new Error(notesJson.error || '获取笔记失败');
       if (categoriesJson?.ok === false) throw new Error(categoriesJson.error || '获取分类失败');
 
-      setNotes(normalizeNotes(notesJson.data));
+      setNotes(getVisibleNotes(normalizeNotes(notesJson.data)));
       setCategories(Array.isArray(categoriesJson.data) ? categoriesJson.data : []);
       setConnStatus('online');
     } catch (err) {
@@ -485,11 +504,25 @@ const App = () => {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+  useEffect(() => {
+    if (activeTab === 'trash') return undefined;
+    setTrashAccessState(createTrashAccessState());
+    setTrashedNotes([]);
+    setIsTrashLoading(false);
+    setTrashPendingNoteId('');
+    return undefined;
+  }, [activeTab]);
 
   const handleCategorySelect = useCallback((categoryId) => {
     setActiveTab('notes');
     setActiveTag(null);
     setActiveCategory(categoryId ? normalizeCategoryId(categoryId) : null);
+  }, []);
+  const openTrashTab = useCallback(() => {
+    setViewingNote(null);
+    setTrashAccessState({ ...createTrashAccessState(), isOpen: true });
+    setTrashedNotes([]);
+    setActiveTab('trash');
   }, []);
 
   const copyText = async (text, token) => {
@@ -742,15 +775,15 @@ const App = () => {
 
   const requestDeleteNote = (id) => {
     if (!id) return;
-    if (!window.confirm('确定删除这条笔记吗？')) return;
-    if (!window.confirm('删除后不可恢复，确认继续删除吗？')) return;
+    if (!window.confirm('确定将这条笔记移入回收站吗？')) return;
+    if (!window.confirm('移入回收站后，普通访客将无法访问它，确认继续吗？')) return;
     handleDelete(id);
   };
 
   const handleDelete = async (id) => {
     if (!id) return;
     if (connStatus === 'offline') {
-      setNotes((prev) => prev.filter((n) => n.id !== id));
+      showToast('离线模式下不能删除，请先恢复后端连接。');
       return;
     }
     try {
@@ -761,6 +794,8 @@ const App = () => {
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) throw new Error(result?.error || `删除失败 (HTTP ${response.status})`);
       setNotes((prev) => prev.filter((n) => n.id !== id));
+      setViewingNote((prev) => (prev?.id === id ? null : prev));
+      showToast('已移入回收站', 'success');
     } catch (err) {
       window.alert(String(err.message || err));
     }
@@ -771,6 +806,145 @@ const App = () => {
     if (!text) return;
     setUiToast({ id: Date.now(), type, message: text });
   }, []);
+  const lockTrashAccess = useCallback((message = '') => {
+    setTrashAccessState({ ...createTrashAccessState(), isOpen: true, error: String(message || '').trim() });
+    setTrashedNotes([]);
+    setIsTrashLoading(false);
+    setTrashPendingNoteId('');
+  }, []);
+  const fetchTrashNotes = useCallback(async (password) => {
+    const response = await fetch(`${SUPABASE_FUNC_URL}/trash/notes`, {
+      headers: buildAdminPasswordHeaders(password, withApiKeyHeaders()),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) {
+      const error = result?.error || `获取回收站失败 (HTTP ${response.status})`;
+      const wrapped = new Error(error);
+      wrapped.status = response.status;
+      throw wrapped;
+    }
+    return sortTrashedNotes(normalizeNotes(result?.data));
+  }, []);
+  const handleTrashAccessSubmit = async (e) => {
+    e?.preventDefault?.();
+    const password = String(trashAccessState.password || '').trim();
+    if (!password || trashAccessState.isSubmitting) {
+      setTrashAccessState((prev) => ({ ...prev, error: password ? prev.error : '请输入回收站密码。' }));
+      return;
+    }
+
+    setTrashAccessState((prev) => ({ ...prev, error: '', isSubmitting: true }));
+    setIsTrashLoading(true);
+    try {
+      const items = await fetchTrashNotes(password);
+      setTrashedNotes(items);
+      setTrashAccessState((prev) => ({ ...prev, error: '', isSubmitting: false, hasAccess: true }));
+    } catch (err) {
+      setTrashedNotes([]);
+      setTrashAccessState((prev) => ({
+        ...prev,
+        hasAccess: false,
+        isSubmitting: false,
+        error: String(err.message || err),
+      }));
+    } finally {
+      setIsTrashLoading(false);
+    }
+  };
+  const handleRefreshTrash = useCallback(async () => {
+    const password = String(trashAccessState.password || '').trim();
+    if (!password || !trashAccessState.hasAccess || isTrashLoading) return;
+
+    setIsTrashLoading(true);
+    try {
+      const items = await fetchTrashNotes(password);
+      setTrashedNotes(items);
+      setTrashAccessState((prev) => ({ ...prev, error: '' }));
+    } catch (err) {
+      const message = String(err.message || err);
+      if (err?.status === 403) {
+        lockTrashAccess(message);
+        return;
+      }
+      showToast(message);
+    } finally {
+      setIsTrashLoading(false);
+    }
+  }, [fetchTrashNotes, isTrashLoading, lockTrashAccess, showToast, trashAccessState.hasAccess, trashAccessState.password]);
+  const handleRestoreTrashedNote = useCallback(async (note) => {
+    const noteId = String(note?.id || '').trim();
+    const password = String(trashAccessState.password || '').trim();
+    if (!noteId || !password || trashPendingNoteId) return;
+
+    setTrashPendingNoteId(noteId);
+    try {
+      const response = await fetch(`${SUPABASE_FUNC_URL}/trash/notes/${encodeURIComponent(noteId)}/restore`, {
+        method: 'POST',
+        headers: buildAdminPasswordHeaders(password, withApiKeyHeaders()),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.ok === false) {
+        const error = result?.error || `恢复失败 (HTTP ${response.status})`;
+        const wrapped = new Error(error);
+        wrapped.status = response.status;
+        throw wrapped;
+      }
+
+      const restoredNote = withShortId(result?.data);
+      setTrashedNotes((prev) => prev.filter((item) => item.id !== noteId));
+      if (restoredNote?.id) {
+        setNotes((prev) => {
+          const next = prev.filter((item) => item.id !== restoredNote.id);
+          return [restoredNote, ...next];
+        });
+      } else {
+        await fetchData();
+      }
+      showToast('已恢复到文字流', 'success');
+    } catch (err) {
+      const message = String(err.message || err);
+      if (err?.status === 403) {
+        lockTrashAccess(message);
+        return;
+      }
+      showToast(message);
+    } finally {
+      setTrashPendingNoteId('');
+    }
+  }, [fetchData, lockTrashAccess, showToast, trashAccessState.password, trashPendingNoteId]);
+  const handlePermanentDeleteTrashedNote = useCallback(async (note) => {
+    const noteId = String(note?.id || '').trim();
+    const password = String(trashAccessState.password || '').trim();
+    if (!noteId || !password || trashPendingNoteId) return;
+    if (!window.confirm('确认彻底删除这条回收站笔记吗？')) return;
+
+    setTrashPendingNoteId(noteId);
+    try {
+      const response = await fetch(`${SUPABASE_FUNC_URL}/trash/notes/${encodeURIComponent(noteId)}`, {
+        method: 'DELETE',
+        headers: buildAdminPasswordHeaders(password, withApiKeyHeaders()),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.ok === false) {
+        const error = result?.error || `彻底删除失败 (HTTP ${response.status})`;
+        const wrapped = new Error(error);
+        wrapped.status = response.status;
+        throw wrapped;
+      }
+
+      setTrashedNotes((prev) => prev.filter((item) => item.id !== noteId));
+      showToast('已彻底删除', 'success');
+    } catch (err) {
+      const message = String(err.message || err);
+      if (err?.status === 403) {
+        lockTrashAccess(message);
+        return;
+      }
+      showToast(message);
+    } finally {
+      setTrashPendingNoteId('');
+    }
+  }, [lockTrashAccess, showToast, trashAccessState.password, trashPendingNoteId]);
 
   const findNoteByExternalId = useCallback((externalId) => {
     const target = String(externalId || '').trim().toLowerCase();
@@ -1097,7 +1271,19 @@ const App = () => {
             })}
           </nav>
         </div>
-        <div className="mt-auto px-6 pt-8 pb-4 text-slate-300 text-[10px] font-bold flex items-center justify-center gap-2 text-center"><Settings size={12} /> {APP_VERSION_LABEL}</div>
+        <div className="mt-auto px-6 pt-4 pb-4">
+          <button
+            type="button"
+            onClick={() => {
+              openTrashTab();
+              setIsMobileSidebarOpen(false);
+            }}
+            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'trash' ? 'bg-amber-50 text-amber-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            <Trash2 size={18} /> 回收站
+          </button>
+          <div className="pt-6 text-slate-300 text-[10px] font-bold flex items-center justify-center gap-2 text-center"><Settings size={12} /> {APP_VERSION_LABEL}</div>
+        </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
@@ -1355,6 +1541,161 @@ const App = () => {
             </div>
           ) : activeTab === 'roomchat' ? (
             <EmbeddedChatRoomTab />
+          ) : activeTab === 'trash' ? (
+            <div className="h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
+              {!trashAccessState.hasAccess ? (
+                <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
+                  <section className="rounded-3xl border border-slate-200 bg-white px-5 sm:px-8 py-6 sm:py-8 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                        <Trash2 size={20} />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl sm:text-3xl font-black text-slate-900">回收站</h2>
+                        <p className="mt-1 text-sm sm:text-base font-medium leading-7 text-slate-600">
+                          已删除的卡片会先进入这里。普通访客无法再访问它们，只有输入密码后才能查看、恢复或彻底删除。
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="max-w-xl rounded-3xl border border-slate-200 bg-white px-5 sm:px-8 py-6 sm:py-8 shadow-sm">
+                    <form className="space-y-4" onSubmit={handleTrashAccessSubmit}>
+                      <div>
+                        <label htmlFor="trash-password" className="text-sm font-black text-slate-700">回收站密码</label>
+                        <p className="mt-2 text-xs font-medium leading-6 text-slate-500">每次进入回收站都需要重新输入密码，本次只在当前进入过程中生效。</p>
+                      </div>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                        <input
+                          id="trash-password"
+                          type="password"
+                          autoComplete="off"
+                          className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-amber-300 focus:bg-white"
+                          placeholder="请输入回收站密码"
+                          value={trashAccessState.password}
+                          onChange={(e) => setTrashAccessState((prev) => ({ ...prev, password: e.target.value, error: '' }))}
+                        />
+                      </div>
+                      {trashAccessState.error && (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                          {trashAccessState.error}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('notes')}
+                          className="px-5 py-3 text-sm font-bold text-slate-500"
+                        >
+                          先返回
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={trashAccessState.isSubmitting}
+                          className="px-6 py-3 rounded-2xl bg-amber-500 text-white text-sm font-black shadow-lg shadow-amber-200 disabled:opacity-60"
+                        >
+                          {trashAccessState.isSubmitting ? '验证中...' : '进入回收站'}
+                        </button>
+                      </div>
+                    </form>
+                  </section>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col">
+                  <div className="px-4 sm:px-8 py-4 sm:py-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center">
+                        <Trash2 size={18} />
+                      </div>
+                      <div>
+                        <h2 className="font-black text-lg">回收站</h2>
+                        <p className="text-xs font-semibold text-slate-500">当前区域受密码保护，仅本次进入有效。</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRefreshTrash}
+                      disabled={isTrashLoading}
+                      className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-600 disabled:opacity-60"
+                    >
+                      {isTrashLoading ? '刷新中...' : '刷新回收站'}
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                    {isTrashLoading ? (
+                      <div className="h-full grid place-items-center text-slate-400 text-sm font-bold">回收站加载中...</div>
+                    ) : trashedNotes.length === 0 ? (
+                      <div className="h-full grid place-items-center text-slate-400 text-sm font-bold">回收站为空</div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-8">
+                        {trashedNotes.map((note) => {
+                          const shortId = getNoteShortId(note);
+                          const isPending = trashPendingNoteId === note.id;
+                          const categoryName = String(note?.categories?.name || '').trim();
+                          const deletedLabel = formatDateTime(note?.deleted_at);
+                          return (
+                            <div
+                              key={`trash-${note.id}`}
+                              className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-amber-100 shadow-sm flex flex-col min-h-[240px] sm:min-h-[320px]"
+                            >
+                              <div className="flex items-start justify-between gap-3 mb-4">
+                                <div className="space-y-2">
+                                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-700">
+                                    <Trash2 size={12} />
+                                    已删除
+                                  </span>
+                                  <div className="text-[10px] font-bold text-slate-400 font-mono">ID: {shortId || '-'}</div>
+                                </div>
+                                <div className="text-right text-[11px] font-semibold text-slate-400">
+                                  <div>删除于</div>
+                                  <div className="mt-1 text-slate-500">{deletedLabel}</div>
+                                </div>
+                              </div>
+
+                              <h3 className="text-xl font-black text-slate-800 mb-3 truncate">{String(note.title || '无标题')}</h3>
+                              <div className="text-sm font-medium leading-7 text-slate-600 whitespace-pre-wrap break-words line-clamp-6 mb-4">
+                                {String(note.content || '').trim() || '该卡片没有正文内容。'}
+                              </div>
+
+                              <div className="mt-auto pt-5 border-t border-slate-100 space-y-3">
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
+                                  <span className="px-2.5 py-1 rounded-full bg-slate-100">{categoryName || '未分类'}</span>
+                                  {Array.isArray(note?.tags) && note.tags.slice(0, 4).map((tag) => (
+                                    <span key={`${note.id}-${tag}`} className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600">#{tag}</span>
+                                  ))}
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRestoreTrashedNote(note)}
+                                    disabled={isPending}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-200 disabled:opacity-60"
+                                  >
+                                    <RotateCcw size={14} />
+                                    {isPending ? '处理中...' : '恢复'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePermanentDeleteTrashedNote(note)}
+                                    disabled={isPending}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-black border border-red-200 disabled:opacity-60"
+                                  >
+                                    <Trash2 size={14} />
+                                    {isPending ? '处理中...' : '彻底删除'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
               <div className="max-w-[76.8rem] mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
