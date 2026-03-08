@@ -29,6 +29,7 @@ import {
   createTrashAccessState,
   getVisibleNotes,
   sortTrashedNotes,
+  TRASH_BUTTON_REVEAL_DELAY_MS,
 } from './trash';
 
 const SUPABASE_FUNC_URL = (import.meta.env.VITE_SUPABASE_FUNC_URL || 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api').replace(/\/$/, '');
@@ -398,6 +399,7 @@ const App = () => {
   const [trashedNotes, setTrashedNotes] = useState([]);
   const [isTrashLoading, setIsTrashLoading] = useState(false);
   const [trashPendingNoteId, setTrashPendingNoteId] = useState('');
+  const [isDesktopTrashButtonVisible, setIsDesktopTrashButtonVisible] = useState(false);
   const [connStatus, setConnStatus] = useState('checking');
   const [connErrorMessage, setConnErrorMessage] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -410,6 +412,7 @@ const App = () => {
 
   const [currentNote, setCurrentNote] = useState(EMPTY_NOTE);
   const chatScrollRef = useRef(null);
+  const trashRevealTimerRef = useRef(null);
 
   const { sendMessage, stopStreaming, isStreaming, error: chatError } = useChatStream(SUPABASE_FUNC_URL);
   const currentChatHistory = useMemo(
@@ -500,6 +503,13 @@ const App = () => {
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth >= 768) setIsMobileSidebarOpen(false);
+      if (window.innerWidth < 768) {
+        if (trashRevealTimerRef.current) {
+          window.clearTimeout(trashRevealTimerRef.current);
+          trashRevealTimerRef.current = null;
+        }
+        setIsDesktopTrashButtonVisible(false);
+      }
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -518,6 +528,24 @@ const App = () => {
     setActiveTag(null);
     setActiveCategory(categoryId ? normalizeCategoryId(categoryId) : null);
   }, []);
+  const clearTrashRevealTimer = useCallback(() => {
+    if (!trashRevealTimerRef.current) return;
+    window.clearTimeout(trashRevealTimerRef.current);
+    trashRevealTimerRef.current = null;
+  }, []);
+  const handleDesktopTrashAreaEnter = useCallback(() => {
+    if (window.innerWidth < 768 || isDesktopTrashButtonVisible) return;
+    clearTrashRevealTimer();
+    trashRevealTimerRef.current = window.setTimeout(() => {
+      setIsDesktopTrashButtonVisible(true);
+      trashRevealTimerRef.current = null;
+    }, TRASH_BUTTON_REVEAL_DELAY_MS);
+  }, [clearTrashRevealTimer, isDesktopTrashButtonVisible]);
+  const handleDesktopTrashAreaLeave = useCallback(() => {
+    clearTrashRevealTimer();
+    setIsDesktopTrashButtonVisible(false);
+  }, [clearTrashRevealTimer]);
+  useEffect(() => () => clearTrashRevealTimer(), [clearTrashRevealTimer]);
   const openTrashTab = useCallback(() => {
     setViewingNote(null);
     setTrashAccessState({ ...createTrashAccessState(), isOpen: true });
@@ -1272,13 +1300,29 @@ const App = () => {
           </nav>
         </div>
         <div className="mt-auto px-6 pt-4 pb-4">
+          <div
+            className="hidden md:flex min-h-[3.25rem] items-center"
+            onMouseEnter={handleDesktopTrashAreaEnter}
+            onMouseLeave={handleDesktopTrashAreaLeave}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                openTrashTab();
+                setIsMobileSidebarOpen(false);
+              }}
+              className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-opacity duration-200 ${isDesktopTrashButtonVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} ${activeTab === 'trash' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <Trash2 size={18} /> 回收站
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => {
               openTrashTab();
               setIsMobileSidebarOpen(false);
             }}
-            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'trash' ? 'bg-amber-50 text-amber-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`md:hidden w-full px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'trash' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             <Trash2 size={18} /> 回收站
           </button>
@@ -1547,7 +1591,7 @@ const App = () => {
                 <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
                   <section className="rounded-3xl border border-slate-200 bg-white px-5 sm:px-8 py-6 sm:py-8 shadow-sm">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                      <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center">
                         <Trash2 size={20} />
                       </div>
                       <div>
@@ -1571,7 +1615,7 @@ const App = () => {
                           id="trash-password"
                           type="password"
                           autoComplete="off"
-                          className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-amber-300 focus:bg-white"
+                          className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-blue-300 focus:bg-white"
                           placeholder="请输入回收站密码"
                           value={trashAccessState.password}
                           onChange={(e) => setTrashAccessState((prev) => ({ ...prev, password: e.target.value, error: '' }))}
@@ -1593,7 +1637,7 @@ const App = () => {
                         <button
                           type="submit"
                           disabled={trashAccessState.isSubmitting}
-                          className="px-6 py-3 rounded-2xl bg-amber-500 text-white text-sm font-black shadow-lg shadow-amber-200 disabled:opacity-60"
+                          className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-200 disabled:opacity-60"
                         >
                           {trashAccessState.isSubmitting ? '验证中...' : '进入回收站'}
                         </button>
@@ -1605,7 +1649,7 @@ const App = () => {
                 <div className="h-full flex flex-col">
                   <div className="px-4 sm:px-8 py-4 sm:py-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center">
                         <Trash2 size={18} />
                       </div>
                       <div>
@@ -1638,11 +1682,11 @@ const App = () => {
                           return (
                             <div
                               key={`trash-${note.id}`}
-                              className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-amber-100 shadow-sm flex flex-col min-h-[240px] sm:min-h-[320px]"
+                              className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-8 border border-blue-100 shadow-sm flex flex-col min-h-[240px] sm:min-h-[320px]"
                             >
                               <div className="flex items-start justify-between gap-3 mb-4">
                                 <div className="space-y-2">
-                                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-700">
+                                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-700">
                                     <Trash2 size={12} />
                                     已删除
                                   </span>

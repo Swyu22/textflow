@@ -1,3 +1,5 @@
+export const TRASH_BUTTON_REVEAL_DELAY_MS = 5000;
+
 export const createTrashAccessState = () => ({
   isOpen: false,
   password: '',

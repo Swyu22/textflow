@@ -4,9 +4,14 @@ import {
   createTrashAccessState,
   getVisibleNotes,
   isTrashedNote,
+  TRASH_BUTTON_REVEAL_DELAY_MS,
 } from './trash';
 
 describe('trash helpers', () => {
+  it('uses a 5 second desktop reveal delay for the trash entry', () => {
+    expect(TRASH_BUTTON_REVEAL_DELAY_MS).toBe(5000);
+  });
+
   it('treats deleted_at notes as trashed', () => {
     expect(isTrashedNote({ id: '1', deleted_at: '2026-03-08T00:00:00.000Z' })).toBe(true);
     expect(isTrashedNote({ id: '2', deleted_at: null })).toBe(false);
