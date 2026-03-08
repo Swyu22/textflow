@@ -24,3 +24,14 @@ export const sortTrashedNotes = (notes) => (
     ? [...notes].sort((a, b) => Date.parse(b?.deleted_at || 0) - Date.parse(a?.deleted_at || 0))
     : []
 );
+
+export const removeNoteById = (notes, noteId) => (
+  Array.isArray(notes)
+    ? notes.filter((note) => String(note?.id || '') !== String(noteId || ''))
+    : []
+);
+
+export const upsertNoteAtTop = (notes, nextNote) => {
+  if (!nextNote?.id) return Array.isArray(notes) ? [...notes] : [];
+  return [nextNote, ...removeNoteById(notes, nextNote.id)];
+};

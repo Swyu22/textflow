@@ -1,18 +1,57 @@
-# React + Vite
+﻿# TextFlow Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+TextFlow 是一个公开可访问的文本存储与复制站点，前端部署在 GitHub Pages，后端使用 Supabase Edge Function 和数据库。
 
-Currently, two official plugins are available:
+当前仓库中的前端真源目录是 `textflow-fe`。后端真源文件是 `../后端/supabase/functions/flow-api/index.ts`。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 主要功能
 
-## React Compiler
+- 文本卡片的创建、编辑、复制、分类和回收站
+- AI 文字助手与流式聊天
+- 匿名临时聊天室 `FlowChat.一阅即散`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 开发命令
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+npm test
+npm run build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-"# textflow" 
-"# textflow" 
+## 关键环境变量
+
+- `VITE_SUPABASE_FUNC_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_BASE_PATH`
+
+聊天室和回收站依赖 Supabase；如果本地未配置，会回落到当前项目默认的线上地址。
+
+## 部署
+
+### 前端
+
+- GitHub Pages 工作流位于 `.github/workflows/deploy.yml`
+- 默认从 `main` 分支构建
+- 线上地址：`https://textflow.art/`
+
+### 后端
+
+- Supabase project ref：`bktkvzvylkqvlucoixay`
+- Edge Function 真源：`../后端/supabase/functions/flow-api/index.ts`
+- 聊天室和回收站相关数据库变更位于 `supabase/migrations/`
+
+部署后端前，至少确认这些 secrets 已配置：
+
+- `CATEGORY_DELETE_PASSWORD`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_URL`
+- 实际使用的 AI provider API keys
+
+## 当前聊天室约束
+
+- 房间销毁后不保留消息和事件日志
+- 仅允许 `chat_join_attempts` 保留 1-2 分钟的最小限流痕迹
+- 页面关闭、刷新、跳转和组件卸载时，前端都会 best-effort 触发退房
