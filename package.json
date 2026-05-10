@@ -9,7 +9,8 @@
     "build:gh": "vite build --mode github",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepare": "husky"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
@@ -31,9 +32,19 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "vite": "^7.2.4",
     "vitest": "^4.0.18"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "node ./node_modules/eslint/bin/eslint.js --fix"
+    ],
+    "src/**/*.{js,jsx}": [
+      "vitest related --run"
+    ]
   }
 }
