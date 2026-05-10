@@ -28,6 +28,42 @@ describe('flow-api contract: CORS', () => {
     expect(r.status).toBe(204);
     expect(r.headers.get('access-control-allow-origin')).toBeTruthy();
   });
+
+  // Whitelist behavior (ADR-0006 candidate, implemented as middleware in _shared.ts).
+  // Whitelisted origins are echoed back; all others fall back to textflow.art.
+  // Vary: Origin is required so CDNs do not cache the wrong allow-origin.
+  it('CORS echoes whitelisted production origin', async () => {
+    const r = await fetch(`${FN}/notes`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://textflow.art' },
+    });
+    expect(r.headers.get('access-control-allow-origin')).toBe('https://textflow.art');
+    expect(r.headers.get('vary')).toMatch(/Origin/i);
+  });
+
+  it('CORS echoes whitelisted localhost dev origin', async () => {
+    const r = await fetch(`${FN}/notes`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:5173' },
+    });
+    expect(r.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
+  });
+
+  it('CORS falls back to textflow.art for non-whitelisted origin', async () => {
+    const r = await fetch(`${FN}/notes`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://evil.example.com' },
+    });
+    expect(r.headers.get('access-control-allow-origin')).toBe('https://textflow.art');
+  });
+
+  it('CORS never returns "*" wildcard (post ADR-0006)', async () => {
+    const r = await fetch(`${FN}/notes`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://anything.test' },
+    });
+    expect(r.headers.get('access-control-allow-origin')).not.toBe('*');
+  });
 });
 
 describe('flow-api contract: notes (GET only, no mutation)', () => {
