@@ -22,8 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-test-results
-test-results
+
+# Test runner artifacts
 test-results
 
-test-results
+# Supabase CLI cache
+**/.temp/

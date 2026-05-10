@@ -92,7 +92,7 @@ const bumpSemverByLevel = ([major, minor, patch], level) => {
 const buildReleaseVersion = (baseVersion, updates) => (updates || [])
   .reduce((acc, update) => bumpSemverByLevel(acc, update?.level), parseSemver(baseVersion))
   .join('.');
-const APP_VERSION_LABEL = 'V' + buildReleaseVersion(RELEASE_BASE_VERSION, RELEASE_UPDATES) + ' ' + RELEASE_CHANNEL.toUpperCase();
+const APP_VERSION_LABEL = `V${buildReleaseVersion(RELEASE_BASE_VERSION, RELEASE_UPDATES)} ${RELEASE_CHANNEL.toUpperCase()}`;
 
 const formatDateTime = (value) => {
   const timestamp = Date.parse(String(value || ''));
@@ -546,13 +546,3 @@ const App = () => {
 };
 
 export default App;
-
-
-
-
-
-
-
-
-
-

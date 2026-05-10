@@ -1,4 +1,9 @@
-﻿const DEFAULT_FUNC_URL = 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api';
+﻿// Note: DEFAULT_SUPABASE_PUBLISHABLE_KEY is a Supabase **publishable** key (sb_publishable_*),
+// not a secret. It is safe to expose in client bundles because Supabase RLS policies enforce
+// access at the row level. The key is intentionally hardcoded as a fallback so the public site
+// works without any runtime env injection. To override (e.g. for staging), set
+// VITE_SUPABASE_PUBLISHABLE_KEY in the build env.
+const DEFAULT_FUNC_URL = 'https://bktkvzvylkqvlucoixay.supabase.co/functions/v1/flow-api';
 const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_Ci3qp9_9ZLBcbWodKeS19A_X39ZTrUk';
 
 const normalizeFuncUrl = (value) => String(value || DEFAULT_FUNC_URL).trim().replace(/\/$/, '');
