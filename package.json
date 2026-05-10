@@ -10,7 +10,7 @@
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:live": "cross-env RUN_LIVE_TESTS=1 vitest run src/api.contract.test.js",
+    "test:live": "cross-env RUN_LIVE_TESTS=1 vitest run",
     "prepare": "husky"
   },
   "dependencies": {
