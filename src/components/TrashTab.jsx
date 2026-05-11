@@ -56,14 +56,14 @@ const TrashTab = ({
               </div>
             )}
             <div className="flex flex-wrap justify-end gap-3">
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => setActiveTab('notes')}
                 className="px-5 py-3 text-sm font-bold text-slate-500"
               >
                 先返回
               </button>
-              <button
+              <button type="button"
                 type="submit"
                 disabled={trashAccessState.isSubmitting}
                 className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-200 disabled:opacity-60"
@@ -86,7 +86,7 @@ const TrashTab = ({
               <p className="text-xs font-semibold text-slate-500">当前区域受密码保护，仅本次进入有效。</p>
             </div>
           </div>
-          <button
+          <button type="button"
             type="button"
             onClick={handleRefreshTrash}
             disabled={isTrashLoading}
@@ -140,7 +140,7 @@ const TrashTab = ({
                         ))}
                       </div>
                       <div className="flex flex-wrap gap-3">
-                        <button
+                        <button type="button"
                           type="button"
                           onClick={() => handleRestoreTrashedNote(note)}
                           disabled={isPending}
@@ -149,7 +149,7 @@ const TrashTab = ({
                           <RotateCcw size={14} />
                           {isPending ? '处理中...' : '恢复'}
                         </button>
-                        <button
+                        <button type="button"
                           type="button"
                           onClick={() => handlePermanentDeleteTrashedNote(note)}
                           disabled={isPending}

@@ -28,7 +28,7 @@ const AppSidebar = ({
             <span className="relative -top-[1px] text-[0.8em] leading-none shrink-0">{'\u6587\u6d41'}</span>
           </h1>
         </div>
-        <button
+        <button type="button"
           type="button"
           onClick={onCloseMobileSidebar}
           className="md:hidden p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50"
@@ -38,14 +38,14 @@ const AppSidebar = ({
         </button>
       </div>
       <nav className="space-y-1 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
-        <button
+        <button type="button"
           type="button"
           onClick={onOpenGuide}
           className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'guide' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
         >
           <BookOpen size={18} /> {'\u4f7f\u7528\u6307\u5357'}
         </button>
-        <button
+        <button type="button"
           onClick={() => handleCategorySelect(null)}
           className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'notes' && !activeCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
         >
@@ -58,7 +58,7 @@ const AppSidebar = ({
           const count = noteCountByCategory.get(categoryKey) || 0;
           return (
             <div key={category.id} className={`group flex items-center justify-between px-4 py-2.5 rounded-xl ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => handleCategorySelect(categoryKey)}
                 className="flex items-center gap-3 min-w-0 flex-1 text-left"
@@ -66,7 +66,7 @@ const AppSidebar = ({
                 <span className="truncate">{category.name}</span>
                 <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
               </button>
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => onOpenCategoryDeleteDialog(category)}
                 className="ml-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -81,7 +81,7 @@ const AppSidebar = ({
       </nav>
       <div className="mt-auto pt-6">
         <div onMouseEnter={handleDesktopTrashAreaEnter} onMouseLeave={handleDesktopTrashAreaLeave}>
-          <button
+          <button type="button"
             type="button"
             onClick={onOpenTrash}
             aria-label={'\u6253\u5f00\u56de\u6536\u7ad9'}
@@ -90,7 +90,7 @@ const AppSidebar = ({
             <Trash2 size={18} /> {'\u56de\u6536\u7ad9'}
           </button>
         </div>
-        <button
+        <button type="button"
           type="button"
           onClick={onOpenTrash}
           className={`md:hidden w-full px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'trash' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}

@@ -15,7 +15,7 @@ const CategoryDeleteDialog = ({
       <div className="bg-white w-full max-w-xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="px-5 sm:px-8 py-5 sm:py-6 border-b flex justify-between items-center">
           <h3 className="text-xl font-black text-red-600">删除分类</h3>
-          <button onClick={closeCategoryDeleteDialog} aria-label="关闭删除分类弹窗" className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>
+          <button type="button" onClick={closeCategoryDeleteDialog} aria-label="关闭删除分类弹窗" className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>
         </div>
         <div className="p-5 sm:p-8 space-y-5">
           <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
@@ -40,11 +40,11 @@ const CategoryDeleteDialog = ({
           )}
         </div>
         <div className="p-5 sm:p-8 border-t flex flex-wrap justify-end gap-4 bg-slate-50/50">
-          <button onClick={closeCategoryDeleteDialog} className="px-6 py-2 text-slate-500 font-bold">取消</button>
+          <button type="button" onClick={closeCategoryDeleteDialog} className="px-6 py-2 text-slate-500 font-bold">取消</button>
           {categoryDeleteState.step === 1 ? (
-            <button onClick={moveToCategoryDeletePasswordStep} className="px-8 py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-200">继续删除</button>
+            <button type="button" onClick={moveToCategoryDeletePasswordStep} className="px-8 py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-200">继续删除</button>
           ) : (
-            <button onClick={handleCategoryDelete} disabled={categoryDeleteState.isSubmitting} className="px-8 py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-200 disabled:opacity-60">
+            <button type="button" onClick={handleCategoryDelete} disabled={categoryDeleteState.isSubmitting} className="px-8 py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-200 disabled:opacity-60">
               {categoryDeleteState.isSubmitting ? '删除中...' : '确认删除分类'}
             </button>
           )}

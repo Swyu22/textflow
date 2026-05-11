@@ -45,7 +45,7 @@ const ChatAssistantTab = ({
       <div className="max-w-[24rem] sm:max-w-[32rem] lg:max-w-[40rem] w-full mx-auto">
         <div className="rounded-2xl bg-white border border-slate-200 p-2 flex gap-2 overflow-x-auto no-scrollbar">
           {Object.keys(chatProviderLabels).map((provider) => (
-            <button
+            <button type="button"
               key={provider}
               type="button"
               onClick={() => handleProviderChange(provider)}
@@ -76,7 +76,7 @@ const ChatAssistantTab = ({
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {topPrePromptStats.map((item) => (
-                <button
+                <button type="button"
                   key={item.id}
                   type="button"
                   onClick={() => applyPrePromptReference(item)}
@@ -135,7 +135,7 @@ const ChatAssistantTab = ({
                               isUser ? 'text-blue-100' : 'text-slate-400'
                             }`}>
                               <span>{isUser ? '你' : chatProviderLabels[item.provider] || '助手'}</span>
-                              <button
+                              <button type="button"
                                 type="button"
                                 onClick={() => copyText(item.content, item.id)}
                                 className={`inline-flex items-center gap-1 text-xs font-bold ${
@@ -175,7 +175,7 @@ const ChatAssistantTab = ({
                     onChange={(e) => setPrePromptIdInput(e.target.value)}
                     disabled={isPrePromptLoading}
                   />
-                  <button
+                  <button type="button"
                     type="button"
                     onClick={handleFetchPrePrompt}
                     disabled={isPrePromptLoading || !prePromptIdInput.trim()}
@@ -191,7 +191,7 @@ const ChatAssistantTab = ({
                       <Check size={14} className="shrink-0" />
                       <span className="truncate">引用内容：{prePromptReference.titlePreview}</span>
                     </div>
-                    <button
+                    <button type="button"
                       type="button"
                       onClick={clearPrePromptReference}
                       className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"

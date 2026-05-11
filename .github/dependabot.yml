@@ -1,0 +1,18 @@
+# Dependabot config — auto-update pinned GitHub Action SHAs (see P2-1).
+# Actions in .github/workflows/*.yml are pinned to specific commits; this file
+# tells Dependabot to open a PR each month when there are newer patch/minor
+# releases so we don't lag too far behind.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "ci"
+      - "dependencies"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

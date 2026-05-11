@@ -21,7 +21,7 @@ const ChatNotFound = ({ onBack }) => (
     <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center">
       <h1 className="text-xl font-black text-slate-900">{chatCopy.invalidPathTitle}</h1>
       <p className="mt-2 text-sm font-medium text-slate-600">{chatCopy.invalidPathDescription}</p>
-      <button
+      <button type="button"
         type="button"
         onClick={onBack}
         className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"

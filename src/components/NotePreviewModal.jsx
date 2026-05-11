@@ -24,7 +24,7 @@ const NotePreviewModal = ({
             <h3 className="text-xl md:text-2xl font-black truncate">{String(note.title || '正文')}</h3>
             <p className="text-xs font-semibold text-slate-400 mt-5 font-mono">短ID: {getNoteShortId(note) || '-'}</p>
           </div>
-          <button onClick={onClose} aria-label="关闭预览" className="p-2 border rounded-full hover:bg-slate-50 shrink-0"><X size={24} /></button>
+          <button type="button" onClick={onClose} aria-label="关闭预览" className="p-2 border rounded-full hover:bg-slate-50 shrink-0"><X size={24} /></button>
         </div>
         <div className="flex-1 overflow-y-auto bg-slate-50/70">
           <article className="max-w-[53rem] mx-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10">
@@ -38,25 +38,25 @@ const NotePreviewModal = ({
           </article>
         </div>
         <div className="p-4 sm:p-8 flex flex-wrap items-center justify-end gap-3 bg-slate-50/50">
-          <button
+          <button type="button"
             onClick={() => copyText(note.content, `view-note-text-${note.id}`)}
             className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-slate-300"
           >
             {copiedToken === `view-note-text-${note.id}` ? '已复制正文' : '复制正文'}
           </button>
-          <button
+          <button type="button"
             onClick={() => copyText(getNoteShortId(note), `view-note-id-${note.id}`)}
             className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-slate-300"
           >
             {copiedToken === `view-note-id-${note.id}` ? '已复制ID' : '复制ID'}
           </button>
-          <button
+          <button type="button"
             onClick={() => copyText(getNoteExternalFetchUrl(note), `view-note-link-${note.id}`)}
             className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-slate-300"
           >
             {copiedToken === `view-note-link-${note.id}` ? '已复制调取链接' : '复制调取链接'}
           </button>
-          <button onClick={() => onEdit(note)} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white rounded-xl font-bold">编辑内容</button>
+          <button type="button" onClick={() => onEdit(note)} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white rounded-xl font-bold">编辑内容</button>
         </div>
       </div>
     </div>

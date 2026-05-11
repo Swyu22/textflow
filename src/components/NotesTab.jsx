@@ -30,7 +30,7 @@ const NotesTab = ({
           const categoryKey = normalizeCategoryId(category?.id);
           const isActive = normalizeCategoryId(activeCategory) === categoryKey;
           return (
-            <button
+            <button type="button"
               key={`mobile-${category.id}`}
               type="button"
               onClick={() => handleCategorySelect(categoryKey)}
@@ -45,9 +45,9 @@ const NotesTab = ({
 
     <div className="px-4 sm:px-8 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar bg-white/50">
       <Tag size={14} className="text-slate-400 shrink-0" />
-      <button onClick={() => setActiveTag(null)} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${!activeTag ? 'bg-slate-900 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500'}`}>全部标签</button>
+      <button type="button" onClick={() => setActiveTag(null)} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${!activeTag ? 'bg-slate-900 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500'}`}>全部标签</button>
       {allTags.map((tag) => (
-        <button key={tag} onClick={() => setActiveTag(tag)} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${activeTag === tag ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>#{tag}</button>
+        <button type="button" key={tag} onClick={() => setActiveTag(tag)} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${activeTag === tag ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>#{tag}</button>
       ))}
     </div>
 
@@ -85,7 +85,7 @@ const NotesTab = ({
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {shortId || '-'}</span>
-                    <button
+                    <button type="button"
                       onClick={(event) => { event.stopPropagation(); copyText(shortId, noteIdToken); }}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200"
                     >
@@ -93,7 +93,7 @@ const NotesTab = ({
                       {isIdCopied ? '已复制' : '复制'}
                     </button>
                   </div>
-                  <button
+                  <button type="button"
                     onClick={(event) => { event.stopPropagation(); onEditNote(note); }}
                     className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200"
                   >
@@ -113,13 +113,13 @@ const NotesTab = ({
                 </div>
 
                 <div className="mt-auto pt-5 border-t border-slate-50 flex items-center justify-between">
-                  <button
+                  <button type="button"
                     onClick={(event) => { event.stopPropagation(); copyText(note.content, noteTextToken); }}
                     className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200"
                   >
                     {isTextCopied ? '已复制文本' : '复制文本'}
                   </button>
-                  <button onClick={(event) => { event.stopPropagation(); requestDeleteNote(note.id); }} aria-label={`删除卡片 ${String(note.title || '无标题')}`} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18} /></button>
+                  <button type="button" onClick={(event) => { event.stopPropagation(); requestDeleteNote(note.id); }} aria-label={`删除卡片 ${String(note.title || '无标题')}`} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18} /></button>
                 </div>
               </div>
             );
