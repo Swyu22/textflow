@@ -16,3 +16,25 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+
+  # P3-6: weekly npm dependency updates. Lower cadence than dev cycle (weekly,
+  # not daily) so the PR queue stays manageable. Groups patch + minor together
+  # to avoid 10 separate PRs every Monday.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      patch-and-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
