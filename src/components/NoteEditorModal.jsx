@@ -34,12 +34,14 @@ const NoteEditorModal = ({
         <div className="p-5 sm:p-8 space-y-6 max-h-[60vh] overflow-y-auto">
           <input
             type="text"
+            aria-label="内容标题"
             className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100 font-bold outline-none"
             placeholder="标题..."
             value={currentNote.title}
             onChange={(event) => handleNoteTitleChange(event.target.value)}
           />
           <textarea
+            aria-label="Markdown 内容"
             rows="8"
             className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100 outline-none resize-none"
             placeholder="Markdown 内容..."
@@ -48,6 +50,7 @@ const NoteEditorModal = ({
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <select
+              aria-label="选择分类"
               className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100"
               value={isAddingCategory ? newCategoryValue : (currentNote.category_id || '')}
               onChange={(event) => handleNoteCategorySelect(event.target.value)}
@@ -60,6 +63,7 @@ const NoteEditorModal = ({
             </select>
             <input
               type="text"
+              aria-label="标签，逗号分隔"
               className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100"
               placeholder="标签 (逗号分隔)..."
               value={currentNote.tags?.join(', ')}
@@ -71,6 +75,7 @@ const NoteEditorModal = ({
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
+                  aria-label="新分类名称"
                   className="flex-1 p-3 bg-white rounded-xl border border-blue-100 outline-none"
                   placeholder="输入新分类名称..."
                   value={newCategoryName}

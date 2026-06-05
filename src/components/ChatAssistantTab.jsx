@@ -47,7 +47,6 @@ const ChatAssistantTab = ({
           {Object.keys(chatProviderLabels).map((provider) => (
             <button type="button"
               key={provider}
-              type="button"
               onClick={() => handleProviderChange(provider)}
               className={`px-3 sm:px-4 py-2 rounded-lg text-[10px] font-black whitespace-nowrap flex-none ${
                 chatProvider === provider ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'
@@ -78,7 +77,6 @@ const ChatAssistantTab = ({
               {topPrePromptStats.map((item) => (
                 <button type="button"
                   key={item.id}
-                  type="button"
                   onClick={() => applyPrePromptReference(item)}
                   className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100"
                 >
@@ -136,7 +134,6 @@ const ChatAssistantTab = ({
                             }`}>
                               <span>{isUser ? '你' : chatProviderLabels[item.provider] || '助手'}</span>
                               <button type="button"
-                                type="button"
                                 onClick={() => copyText(item.content, item.id)}
                                 className={`inline-flex items-center gap-1 text-xs font-bold ${
                                   isUser ? 'text-blue-100 hover:text-white' : 'text-slate-500 hover:text-slate-700'
@@ -169,6 +166,7 @@ const ChatAssistantTab = ({
                 <div className="flex flex-col sm:flex-row gap-2.5">
                   <input
                     type="text"
+                    aria-label="前置提示词 ID"
                     className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium outline-none focus:border-blue-300"
                     placeholder="前置提示词 ID（输入短ID或完整ID）"
                     value={prePromptIdInput}
@@ -176,7 +174,6 @@ const ChatAssistantTab = ({
                     disabled={isPrePromptLoading}
                   />
                   <button type="button"
-                    type="button"
                     onClick={handleFetchPrePrompt}
                     disabled={isPrePromptLoading || !prePromptIdInput.trim()}
                     className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
@@ -192,7 +189,6 @@ const ChatAssistantTab = ({
                       <span className="truncate">引用内容：{prePromptReference.titlePreview}</span>
                     </div>
                     <button type="button"
-                      type="button"
                       onClick={clearPrePromptReference}
                       className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                       title="清除引用"
@@ -207,6 +203,7 @@ const ChatAssistantTab = ({
 
             <div className="max-w-[24rem] sm:max-w-[32rem] lg:max-w-[40rem] w-full mx-auto relative group">
               <textarea
+                aria-label={`向 ${chatProviderLabels[chatProvider]} 提问`}
                 rows="3"
                 className="w-full min-h-[7rem] sm:min-h-[8rem] max-h-[14rem] overflow-y-auto p-4 sm:p-5 pr-16 sm:pr-20 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/5 resize-none font-medium"
                 placeholder={`向 ${chatProviderLabels[chatProvider]} 提问...`}

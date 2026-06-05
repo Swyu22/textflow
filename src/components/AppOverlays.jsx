@@ -24,7 +24,6 @@ const AppOverlays = ({ closeMobileSidebar, connErrorMessage, connStatus, dismiss
 
     {isMobileSidebarOpen && (
       <button type="button"
-        type="button"
         aria-label="关闭侧边栏"
         onClick={closeMobileSidebar}
         className="fixed inset-0 z-[1040] bg-slate-900/35 backdrop-blur-[1px] md:hidden"

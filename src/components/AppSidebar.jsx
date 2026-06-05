@@ -29,7 +29,6 @@ const AppSidebar = ({
           </h1>
         </div>
         <button type="button"
-          type="button"
           onClick={onCloseMobileSidebar}
           className="md:hidden p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50"
           aria-label={'\u5173\u95ed\u5bfc\u822a'}
@@ -39,7 +38,6 @@ const AppSidebar = ({
       </div>
       <nav className="space-y-1 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
         <button type="button"
-          type="button"
           onClick={onOpenGuide}
           className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'guide' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
         >
@@ -59,17 +57,15 @@ const AppSidebar = ({
           return (
             <div key={category.id} className={`group flex items-center justify-between px-4 py-2.5 rounded-xl ${isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
               <button type="button"
-                type="button"
                 onClick={() => handleCategorySelect(categoryKey)}
                 className="flex items-center gap-3 min-w-0 flex-1 text-left"
               >
                 <span className="truncate">{category.name}</span>
-                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
+                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>{count}</span>
               </button>
               <button type="button"
-                type="button"
                 onClick={() => onOpenCategoryDeleteDialog(category)}
-                className="ml-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="ml-2 p-1.5 rounded-lg text-red-700 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                 title={'\u5220\u9664\u5206\u7c7b'}
                 aria-label={`\u5220\u9664\u5206\u7c7b ${category.name}`}
               >
@@ -82,7 +78,6 @@ const AppSidebar = ({
       <div className="mt-auto pt-6">
         <div onMouseEnter={handleDesktopTrashAreaEnter} onMouseLeave={handleDesktopTrashAreaLeave}>
           <button type="button"
-            type="button"
             onClick={onOpenTrash}
             aria-label={'\u6253\u5f00\u56de\u6536\u7ad9'}
             className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-opacity duration-200 ${isDesktopTrashButtonVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} ${activeTab === 'trash' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
@@ -91,7 +86,6 @@ const AppSidebar = ({
           </button>
         </div>
         <button type="button"
-          type="button"
           onClick={onOpenTrash}
           className={`md:hidden w-full px-4 py-3 rounded-xl flex items-center gap-3 ${activeTab === 'trash' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
         >

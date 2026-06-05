@@ -8,6 +8,11 @@ const cloneEmptyNote = (emptyNote) => ({
   tags: Array.isArray(emptyNote?.tags) ? [...emptyNote.tags] : [],
 });
 
+const parseTags = (value) => String(value || '').split(',').flatMap((tag) => {
+  const normalized = tag.trim();
+  return normalized ? [normalized] : [];
+});
+
 const createNoteEditorState = (emptyNote) => ({
   isModalOpen: false,
   currentNote: cloneEmptyNote(emptyNote),
@@ -110,10 +115,7 @@ const useNoteEditor = ({
     dispatch({
       type: 'patchNote',
       payload: {
-        tags: String(value || '')
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+        tags: parseTags(value),
       },
     });
   }, []);
@@ -217,7 +219,10 @@ const useNoteEditor = ({
       title: String(currentNote.title || '').trim(),
       content: String(currentNote.content || '').trim(),
       category_id: currentNote.category_id || null,
-      tags: Array.isArray(currentNote.tags) ? currentNote.tags.map((tag) => String(tag).trim()).filter(Boolean) : [],
+      tags: Array.isArray(currentNote.tags) ? currentNote.tags.flatMap((tag) => {
+        const normalized = String(tag).trim();
+        return normalized ? [normalized] : [];
+      }) : [],
     };
 
     if (!payload.title && !payload.content) {

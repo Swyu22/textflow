@@ -147,7 +147,6 @@ export const ChatRoomLanding = ({ onEnterRoom }) => {
 
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <button type="button"
-              type="button"
               onClick={onCreate}
               disabled={busyAction !== ''}
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-sm font-black text-slate-900 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -156,7 +155,6 @@ export const ChatRoomLanding = ({ onEnterRoom }) => {
               {busyAction === 'create' ? chatCopy.creatingRoom : chatCopy.createRoom}
             </button>
             <button type="button"
-              type="button"
               onClick={onJoin}
               disabled={busyAction !== ''}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -500,7 +498,6 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
         <div className="rounded-3xl border border-red-200 bg-white p-6 text-center">
           <p className="text-base font-bold text-red-600">{error || chatCopy.roomUnavailable}</p>
           <button type="button"
-            type="button"
             onClick={onBackToLanding}
             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
@@ -518,7 +515,6 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
           <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
             <button type="button"
-              type="button"
               onClick={onBackToLanding}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:text-sm"
             >
@@ -529,7 +525,6 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             <div className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 sm:col-span-1 sm:justify-start">
               <span className="text-xs font-bold text-slate-500">{chatCopy.roomCodeShortLabel}</span>
               <button type="button"
-                type="button"
                 onClick={onCopyCode}
                 className="inline-flex items-center gap-1 text-sm font-black text-slate-900 hover:text-blue-700"
               >
@@ -545,7 +540,6 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             </div>
 
             <button type="button"
-              type="button"
               onClick={onLeave}
               disabled={leaving}
               className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 disabled:opacity-60 sm:text-sm"
@@ -584,6 +578,7 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
           <div className="border-t border-slate-200 bg-slate-50 p-3 sm:p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <textarea
+                aria-label="聊天室消息"
                 rows={2}
                 value={messageInput}
                 onChange={(e) => {
@@ -602,7 +597,6 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
                 className="min-h-[68px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100"
               />
               <button type="button"
-                type="button"
                 onClick={onSend}
                 disabled={isExpired || nicknameModalOpen || isSending}
                 className="w-full sm:w-auto rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -631,6 +625,7 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             <h2 className="text-lg font-black text-slate-900">{chatCopy.nicknameTitle}</h2>
             <p className="mt-1 text-sm font-medium text-slate-600">{chatCopy.nicknameDescription}</p>
             <input
+              aria-label="聊天室昵称"
               type="text"
               value={nicknameDraft}
               maxLength={20}
@@ -643,7 +638,6 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
             />
             <p className="mt-1 text-right text-xs text-slate-400">{normalizeNickname(nicknameDraft).length}/20</p>
             <button type="button"
-              type="button"
               onClick={onSaveNickname}
               disabled={savingNickname}
               className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"

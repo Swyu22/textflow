@@ -28,6 +28,7 @@ const CategoryDeleteDialog = ({
               <p className="text-sm font-medium text-slate-600">请输入删除密码完成最后确认。</p>
               <input
                 type="password"
+                aria-label="删除分类密码"
                 className="w-full p-4 bg-slate-50 rounded-xl border border-slate-100 outline-none"
                 placeholder="请输入删除密码"
                 value={categoryDeleteState.password}

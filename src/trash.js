@@ -21,7 +21,7 @@ export const buildAdminPasswordHeaders = (password, headers = undefined) => {
 
 export const sortTrashedNotes = (notes) => (
   Array.isArray(notes)
-    ? [...notes].sort((a, b) => Date.parse(b?.deleted_at || 0) - Date.parse(a?.deleted_at || 0))
+    ? notes.slice().sort((a, b) => Date.parse(b?.deleted_at || 0) - Date.parse(a?.deleted_at || 0))
     : []
 );
 

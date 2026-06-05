@@ -20,10 +20,12 @@ const toShortId = (rawId) => String(rawId ?? '')
   .slice(0, SHORT_ID_LENGTH)
   .toUpperCase();
 const toContextMessages = (history) =>
-  (history || [])
-    .filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
-    .filter((item) => typeof item.content === 'string' && item.content.trim())
-    .map((item) => ({ role: item.role, content: item.content.trim() }));
+  (history || []).flatMap((item) => {
+    if (!item || (item.role !== 'user' && item.role !== 'assistant')) return [];
+    if (typeof item.content !== 'string') return [];
+    const content = item.content.trim();
+    return content ? [{ role: item.role, content }] : [];
+  });
 
 const buildPromptWithContext = (prompt, contextMessages) => {
   const context = (contextMessages || []).slice(-MAX_CONTEXT_MESSAGES);
@@ -80,11 +82,10 @@ const consumeSseBuffer = (rawBuffer, onText) => {
     if (eventEnd === -1) break;
     const rawEvent = buffer.slice(0, eventEnd);
     buffer = buffer.slice(eventEnd + 2);
-    const lines = rawEvent
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice(5).trimStart());
+    const lines = rawEvent.split('\n').flatMap((line) => {
+      const normalized = line.trim();
+      return normalized.startsWith('data:') ? [normalized.slice(5).trimStart()] : [];
+    });
     if (lines.length === 0) continue;
     const text = parseSseEventText(lines.join('\n'));
     if (text) onText(text);

@@ -142,14 +142,16 @@ const toDisplayMarkdown = (value) => String(value || '')
   .replace(/\r\n/g, '\n')
   .replace(/\r/g, '\n')
   .replace(/\n/g, '  \n');
-const MarkdownLink = ({ href, ...props }) => {
+const MarkdownLink = ({ href, children, ...props }) => {
   const safeHref = normalizeHttpUrl(href);
   if (!safeHref) {
     return (
       <span
         {...props}
         className="text-slate-500 underline underline-offset-2 break-all"
-      />
+      >
+        {children || href}
+      </span>
     );
   }
   return (
@@ -160,7 +162,9 @@ const MarkdownLink = ({ href, ...props }) => {
       rel="noopener noreferrer"
       onClick={(e) => { e.stopPropagation(); }}
       className="text-blue-600 underline underline-offset-2 break-all hover:text-blue-700"
-    />
+    >
+      {children || safeHref}
+    </a>
   );
 };
 

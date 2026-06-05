@@ -57,13 +57,12 @@ const TrashTab = ({
             )}
             <div className="flex flex-wrap justify-end gap-3">
               <button type="button"
-                type="button"
                 onClick={() => setActiveTab('notes')}
                 className="px-5 py-3 text-sm font-bold text-slate-500"
               >
                 先返回
               </button>
-              <button type="button"
+              <button
                 type="submit"
                 disabled={trashAccessState.isSubmitting}
                 className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-200 disabled:opacity-60"
@@ -87,7 +86,6 @@ const TrashTab = ({
             </div>
           </div>
           <button type="button"
-            type="button"
             onClick={handleRefreshTrash}
             disabled={isTrashLoading}
             className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-600 disabled:opacity-60"
@@ -141,7 +139,6 @@ const TrashTab = ({
                       </div>
                       <div className="flex flex-wrap gap-3">
                         <button type="button"
-                          type="button"
                           onClick={() => handleRestoreTrashedNote(note)}
                           disabled={isPending}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-200 disabled:opacity-60"
@@ -150,7 +147,6 @@ const TrashTab = ({
                           {isPending ? '处理中...' : '恢复'}
                         </button>
                         <button type="button"
-                          type="button"
                           onClick={() => handlePermanentDeleteTrashedNote(note)}
                           disabled={isPending}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-black border border-red-200 disabled:opacity-60"

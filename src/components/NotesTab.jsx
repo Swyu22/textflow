@@ -32,7 +32,6 @@ const NotesTab = ({
           return (
             <button type="button"
               key={`mobile-${category.id}`}
-              type="button"
               onClick={() => handleCategorySelect(categoryKey)}
               className={`px-3 py-1.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500'}`}
             >

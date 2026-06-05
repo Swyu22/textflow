@@ -2,7 +2,7 @@
 
 TextFlow 是一个公开可访问的文本存储与复制站点，前端部署在 GitHub Pages，后端使用 Supabase Edge Function 和数据库。
 
-当前仓库中的前端真源目录是 `textflow-fe`。后端真源文件是 `../后端/supabase/functions/flow-api/index.ts`。
+当前仓库中的前端真源目录是 `textflow-fe`。后端真源目录是 `../后端/supabase/functions/flow-api/`，其中 `index.ts` 仅负责 dispatcher。
 
 ## 主要功能
 
@@ -40,7 +40,7 @@ npm run build
 ### 后端
 
 - Supabase project ref：`bktkvzvylkqvlucoixay`
-- Edge Function 真源：`../后端/supabase/functions/flow-api/index.ts`
+- Edge Function 真源：`../后端/supabase/functions/flow-api/`
 - 聊天室和回收站相关数据库变更位于 `supabase/migrations/`
 
 部署后端前，至少确认这些 secrets 已配置：

@@ -28,3 +28,23 @@ test-results
 
 # Supabase CLI cache
 **/.temp/
+
+# Generated artifacts and caches
+build/
+out/
+.next/
+.nuxt/
+.vite/
+.turbo/
+.parcel-cache/
+.cache/
+coverage/
+tmp/
+temp/
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+target/
+bin/
+obj/
