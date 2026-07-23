@@ -34,13 +34,6 @@ select:focus-visible {
   -webkit-font-smoothing: antialiased;
 }
 
-.tf-sidebar {
-  height: 100vh;
-  position: sticky;
-  top: 0;
-  flex-shrink: 0;
-}
-
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -86,30 +79,9 @@ select:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.tf-chat-markdown,
-.tf-chat-markdown * {
-  max-width: 100%;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.tf-chat-markdown pre {
-  white-space: pre-wrap;
-  overflow-x: hidden;
-}
-
-.tf-chat-markdown code {
-  white-space: break-spaces;
-}
-
 .tf-note-item {
   content-visibility: auto;
   contain-intrinsic-size: 0 300px;
-}
-
-.tf-chat-item {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 180px;
 }
 
 .tf-full-note p,
@@ -121,13 +93,6 @@ select:focus-visible {
 .tf-full-note h4 {
   white-space: break-spaces;
   line-height: 3.8;
-}
-
-.line-clamp-6 {
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .animate-in {

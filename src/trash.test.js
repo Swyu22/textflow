@@ -42,15 +42,15 @@ describe('trash helpers', () => {
   });
 
   it('adds the admin password header only when a password is provided', () => {
-    const headers = buildAdminPasswordHeaders('5185');
-    expect(headers.get('x-admin-password')).toBe('5185');
+    const headers = buildAdminPasswordHeaders('test-password-123');
+    expect(headers.get('x-admin-password')).toBe('test-password-123');
     expect(buildAdminPasswordHeaders('').has('x-admin-password')).toBe(false);
   });
 
   it('preserves existing headers while adding the admin password header', () => {
-    const headers = buildAdminPasswordHeaders('5185', { 'Content-Type': 'application/json' });
+    const headers = buildAdminPasswordHeaders('test-password-123', { 'Content-Type': 'application/json' });
     expect(headers.get('Content-Type')).toBe('application/json');
-    expect(headers.get('x-admin-password')).toBe('5185');
+    expect(headers.get('x-admin-password')).toBe('test-password-123');
   });
 
   it('sorts trashed notes from newest deletion to oldest', () => {

@@ -65,7 +65,7 @@ const AppSidebar = ({
               </button>
               <button type="button"
                 onClick={() => onOpenCategoryDeleteDialog(category)}
-                className="ml-2 p-1.5 rounded-lg text-red-700 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="ml-2 p-1.5 rounded-lg text-red-700 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity"
                 title={'\u5220\u9664\u5206\u7c7b'}
                 aria-label={`\u5220\u9664\u5206\u7c7b ${category.name}`}
               >

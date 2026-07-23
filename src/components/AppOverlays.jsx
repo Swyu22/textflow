@@ -4,7 +4,7 @@ import { AlertCircle, Check, WifiOff, X } from 'lucide-react';
 const AppOverlays = ({ closeMobileSidebar, connErrorMessage, connStatus, dismissToast, fetchData, isMobileSidebarOpen, uiToast }) => (
   <>
     {connStatus === 'offline' && (
-      <div aria-live="assertive" className="fixed top-0 left-0 right-0 z-[999] bg-red-600 text-white text-[10px] font-bold py-2 px-6 flex justify-between items-center shadow-lg animate-in slide-in-from-top">
+      <div aria-live="assertive" className="fixed top-0 left-0 right-0 z-[999] bg-red-600 text-white text-[10px] font-bold py-2 px-6 flex justify-between items-center shadow-lg animate-in">
         <div className="flex items-center gap-2"><WifiOff size={14} /> 后端连接异常: {String(connErrorMessage)}</div>
         <button type="button" onClick={fetchData} className="bg-white/20 px-3 py-1 rounded-full text-[10px] hover:bg-white/30">尝试重连</button>
       </div>

@@ -26,7 +26,7 @@ const NoteEditorModal = ({
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-md">
-      <div className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label={currentNote.id ? '编辑内容' : '新建内容'} className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="px-5 sm:px-8 py-5 sm:py-6 border-b flex justify-between items-center">
           <h3 className="text-xl font-black">{currentNote.id ? '编辑内容' : '新建内容'}</h3>
           <button type="button" onClick={onClose} aria-label="关闭编辑弹窗" className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>

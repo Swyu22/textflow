@@ -2,7 +2,7 @@
 
 TextFlow 是一个公开可访问的文本存储与复制站点，前端部署在 GitHub Pages，后端使用 Supabase Edge Function 和数据库。
 
-当前仓库中的前端真源目录是 `textflow-fe`。后端真源目录是 `../后端/supabase/functions/flow-api/`，其中 `index.ts` 仅负责 dispatcher。
+当前仓库即为前端真源（仓库根目录就是应用根）。后端真源目录是 `../后端/supabase/functions/flow-api/`，其中 `index.ts` 仅负责 dispatcher。
 
 ## 主要功能
 
@@ -26,8 +26,13 @@ npm run build
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_BASE_PATH`
+- `VITE_SENTRY_DSN`（可选）
 
 聊天室和回收站依赖 Supabase；如果本地未配置，会回落到当前项目默认的线上地址。
+
+## 生产监控
+
+设置 `VITE_SENTRY_DSN` 后，`src/main.jsx` 会初始化 Sentry（采样率 10%，不发送 PII）；未设置时 Sentry SDK 完全不启用。
 
 ## 部署
 

@@ -12,7 +12,7 @@ const CategoryDeleteDialog = ({
 
   return (
     <div className="fixed inset-0 z-[1001] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-md">
-      <div className="bg-white w-full max-w-xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label="删除分类" className="bg-white w-full max-w-xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="px-5 sm:px-8 py-5 sm:py-6 border-b flex justify-between items-center">
           <h3 className="text-xl font-black text-red-600">删除分类</h3>
           <button type="button" onClick={closeCategoryDeleteDialog} aria-label="关闭删除分类弹窗" className="p-2 hover:bg-slate-50 rounded-lg"><X size={20} /></button>

@@ -621,7 +621,7 @@ export const ChatRoomPanel = ({ roomCode, bootstrap, onBackToLanding }) => {
 
       {nicknameModalOpen && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label={chatCopy.nicknameTitle} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
             <h2 className="text-lg font-black text-slate-900">{chatCopy.nicknameTitle}</h2>
             <p className="mt-1 text-sm font-medium text-slate-600">{chatCopy.nicknameDescription}</p>
             <input

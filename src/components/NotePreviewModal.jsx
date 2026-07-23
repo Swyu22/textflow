@@ -18,7 +18,7 @@ const NotePreviewModal = ({
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-md">
-      <div className="bg-white w-full max-w-5xl max-h-[92vh] rounded-3xl sm:rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label={String(note.title || '正文')} className="bg-white w-full max-w-5xl max-h-[92vh] rounded-3xl sm:rounded-[3rem] shadow-2xl flex flex-col overflow-hidden">
         <div className="px-5 sm:px-8 md:px-10 py-5 sm:py-6 md:py-8 bg-white flex justify-between items-start gap-4">
           <div className="min-w-0">
             <h3 className="text-xl md:text-2xl font-black truncate">{String(note.title || '正文')}</h3>
